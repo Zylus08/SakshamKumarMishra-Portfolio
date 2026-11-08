@@ -2,11 +2,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Search, Sun, Moon, Menu, X, ArrowUpRight } from "lucide-react";
+import { Search, Sun, Moon, Menu, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { navigation, profile } from "@/lib/profile";
+import { navigation, configuredSocials } from "@/lib/profile";
+import type { ProfessionalDocument } from "@/lib/assets";
+import { ResumeMenu } from "./resume-menu";
+import { BrandMark } from "./brand-mark";
 type Command = { label: string; href?: string };
-export function Header({ entries }: { entries: Command[] }) {
+export function Header({
+  entries,
+  documents,
+}: {
+  entries: Command[];
+  documents: ProfessionalDocument[];
+}) {
   const path = usePathname(),
     router = useRouter(),
     dialog = useRef<HTMLDialogElement>(null),
@@ -58,10 +67,11 @@ export function Header({ entries }: { entries: Command[] }) {
   const commands: Command[] = [
     ...navigation.map((n) => ({ label: n.label, href: n.href })),
     ...entries,
-    ...(profile.github ? [{ label: "GitHub", href: profile.github }] : []),
-    ...(profile.linkedin
-      ? [{ label: "LinkedIn", href: profile.linkedin }]
-      : []),
+    { label: "Contact", href: "/contact" },
+    ...configuredSocials().map((link) => ({
+      label: link.label,
+      href: link.url,
+    })),
     { label: "Toggle theme" },
   ];
   const matches = commands.filter((c) =>
@@ -82,7 +92,10 @@ export function Header({ entries }: { entries: Command[] }) {
     <>
       <header className="header">
         <Link className="brand" href="/" aria-label="SKM home">
-          SKM<span>.</span>
+          <BrandMark />
+          <span className="brand-word">
+            SKM<span>.</span>
+          </span>
         </Link>
         <nav aria-label="Primary" className="desktop-nav">
           {navigation.map((n) => (
@@ -100,11 +113,7 @@ export function Header({ entries }: { entries: Command[] }) {
           ))}
         </nav>
         <div className="utilities">
-          {profile.cv && (
-            <a className="cv" href={profile.cv} download>
-              CV <ArrowUpRight size={13} />
-            </a>
-          )}
+          <ResumeMenu documents={documents} />
           <button
             ref={trigger}
             onClick={() => setOpen(true)}

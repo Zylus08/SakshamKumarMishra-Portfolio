@@ -3,6 +3,9 @@ import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { Field } from "@/components/field";
 import { Reveal } from "@/components/reveal";
 import { Contact } from "@/components/contact";
+import { ContactForm } from "@/components/contact-form";
+import { Photograph } from "@/components/photograph";
+import { photographs } from "@/lib/assets";
 import { getEntries } from "@/lib/content";
 import { profile, origin } from "@/lib/profile";
 export const metadata = { alternates: { canonical: "/" } };
@@ -42,6 +45,7 @@ export default function Home() {
             </span>
           </h1>
           <div className="hero-intro">
+            <Photograph photo={photographs.portrait} compact />
             <p>
               I’m Saksham. I explore machine intelligence, engineer complex
               systems, and occasionally write about everything in between.
@@ -205,12 +209,7 @@ export default function Home() {
         </div>
       </section>
       <section className="section personal" data-reveal>
-        <div className="arch-art" aria-hidden="true">
-          <div />
-          <div />
-          <div />
-          <span>दिल्ली</span>
-        </div>
+        <Photograph photo={photographs.lifestyle} variant="lifestyle" />
         <div>
           <p className="eyebrow">04 / BEYOND THE TERMINAL</p>
           <h2>
@@ -249,6 +248,7 @@ export default function Home() {
           There’s always room to explore.
         </p>
         <Contact />
+        <ContactForm />
         <span className="invitation-star" aria-hidden="true">
           ✳
         </span>

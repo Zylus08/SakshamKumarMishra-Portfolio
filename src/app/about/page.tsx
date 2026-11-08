@@ -1,5 +1,9 @@
 import { profile } from "@/lib/profile";
 import { Contact } from "@/components/contact";
+import { DocumentSelector } from "@/components/document-selector";
+import { Photograph } from "@/components/photograph";
+import { photographs } from "@/lib/assets";
+import { availableDocuments } from "@/lib/asset-files";
 export const metadata = { title: "About", alternates: { canonical: "/about" } };
 export default function About() {
   return (
@@ -19,10 +23,7 @@ export default function About() {
         </p>
       </header>
       <div className="about-grid">
-        <div className="about-monogram" aria-label="SKM monogram">
-          skm<span>.</span>
-          <small>DELHI → PATIALA → WHAT’S NEXT</small>
-        </div>
+        <Photograph photo={photographs.portrait} />
         <div className="prose">
           <h2>Understanding before abstraction.</h2>
           <p>
@@ -56,6 +57,10 @@ export default function About() {
             </span>
           ))}
         </div>
+      </section>
+      <section className="about-contact">
+        <p className="eyebrow">RESUMES & ACADEMIC CV</p>
+        <DocumentSelector documents={availableDocuments()} />
       </section>
       <section className="about-contact">
         <h2>Something worth exploring?</h2>

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts",
   timeout: 120000,
   fullyParallel: false,
   workers: 1,
@@ -18,9 +19,18 @@ export default defineConfig({
     },
   ],
   webServer: {
+    env: {
+      CONTACT_TRANSPORT: "mock",
+      CONTACT_ALLOWED_ORIGINS: "http://127.0.0.1:3000",
+      RESEND_API_KEY: "",
+      CONTACT_TO_EMAIL: "",
+      CONTACT_FROM_EMAIL: "",
+      UPSTASH_REDIS_REST_URL: "",
+      UPSTASH_REDIS_REST_TOKEN: "",
+    },
     command: "npm run start -- --hostname 127.0.0.1",
     url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

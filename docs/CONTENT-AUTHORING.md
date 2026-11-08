@@ -45,6 +45,6 @@ Do not add illustrative benchmark numbers to real case studies. Add local images
 
 Research notes should document question, abstract, motivation, methods, architecture, experimental setup, results, limitations, reproducibility, and verified citation. Project notes should cover problem, architecture, decisions, implementation, challenges, tests, results, limitations, and future work.
 
-Configure verified email, GitHub, LinkedIn, and CV in `src/lib/profile.ts`. Put the actual CV PDF in `public/documents`, then set cv to `/documents/filename.pdf`. Empty values intentionally omit those links. Timeline dates and institutional research affiliations must be confirmed before adding them.
+Configure verified public email and professional profiles in `src/lib/profile.ts`. Configure PDFs and photographs in `src/lib/assets.ts`; see RESUME-LIBRARY.md and IDENTITY-ASSETS.md. Empty profile values omit links; null asset entries use deliberate empty states. Timeline dates and institutional research affiliations must be confirmed before adding them.
 
 Run validation and build after editing. `scripts/seed-content.mjs` records the original placeholder generation; do not rerun it over edited case studies.

@@ -2,10 +2,14 @@ export const profile = {
   name: "Saksham Kumar Mishra",
   city: "Delhi, India",
   institution: "Thapar Institute of Engineering & Technology",
-  email: "",
-  github: "",
-  linkedin: "",
-  cv: "",
+  email: "mishrasaksham080705@gmail.com",
+  socials: {
+    github: "https://github.com/Zylus08",
+    linkedin: "https://www.linkedin.com/in/saksham-mishra-ml/",
+    codeforces: "",
+    leetcode: "https://leetcode.com/u/zylus08/",
+    cses: "https://cses.fi/user/515838",
+  } satisfies Record<SocialPlatform, string>,
   interests: [
     "Representation learning",
     "Computer vision",
@@ -37,6 +41,43 @@ export const profile = {
     },
   ],
 };
+export type SocialPlatform =
+  "github" | "linkedin" | "codeforces" | "leetcode" | "cses";
+export const socialPlatforms: Record<
+  SocialPlatform,
+  { label: string; mark: string; hosts: string[] }
+> = {
+  github: { label: "GitHub", mark: "GH", hosts: ["github.com"] },
+  linkedin: {
+    label: "LinkedIn",
+    mark: "in",
+    hosts: ["linkedin.com", "www.linkedin.com"],
+  },
+  codeforces: { label: "Codeforces", mark: "CF", hosts: ["codeforces.com"] },
+  leetcode: { label: "LeetCode", mark: "LC", hosts: ["leetcode.com"] },
+  cses: { label: "CSES", mark: "CS", hosts: ["cses.fi"] },
+};
+export function configuredSocials(
+  values: Record<SocialPlatform, string> = profile.socials,
+) {
+  return (Object.keys(socialPlatforms) as SocialPlatform[]).flatMap(
+    (platform) => {
+      const value = values[platform];
+      if (!value) return [];
+      const url = new URL(value);
+      if (
+        url.protocol !== "https:" ||
+        url.username ||
+        url.password ||
+        url.port ||
+        !socialPlatforms[platform].hosts.includes(url.hostname) ||
+        url.pathname === "/"
+      )
+        throw new Error(`Invalid ${platform} profile URL`);
+      return [{ platform, url: url.href, ...socialPlatforms[platform] }];
+    },
+  );
+}
 export const navigation = [
   { label: "Home", href: "/" },
   { label: "Research", href: "/research" },

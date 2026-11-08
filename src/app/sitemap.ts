@@ -3,6 +3,7 @@ import { allEntries } from "@/lib/content";
 import { origin, navigation } from "@/lib/profile";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
+    { url: origin + "/contact" },
     ...navigation.map((n) => ({ url: origin + n.href })),
     ...allEntries()
       .filter(

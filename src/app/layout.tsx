@@ -11,8 +11,18 @@ import { Header } from "@/components/header";
 import { Contact } from "@/components/contact";
 import { allEntries } from "@/lib/content";
 import { origin, profile } from "@/lib/profile";
+import { availableDocuments } from "@/lib/asset-files";
+import { BrandMark } from "@/components/brand-mark";
 export const metadata: Metadata = {
   metadataBase: new URL(origin),
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   title: {
     default: "Saksham Kumar Mishra — Research & Engineering",
     template: "%s — SKM",
@@ -45,6 +55,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <Header
+          documents={availableDocuments()}
           entries={allEntries().map((e) => ({
             label: e.title,
             href: `/${e.kind}/${e.slug}`,
@@ -54,7 +65,10 @@ export default function RootLayout({
         <footer className="footer">
           <div>
             <Link href="/" className="brand">
-              SKM<span>.</span>
+              <BrandMark />
+              <span className="brand-word">
+                SKM<span>.</span>
+              </span>
             </Link>
             <p>
               A digital research atelier.

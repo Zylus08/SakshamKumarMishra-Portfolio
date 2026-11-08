@@ -11,20 +11,18 @@ export function Reveal({ children }: { children: React.ReactNode }) {
         if (!active) return;
         gsap.registerPlugin(ScrollTrigger);
         const ctx = gsap.context(() => {
-          gsap.utils
-            .toArray<HTMLElement>("[data-reveal]")
-            .forEach((el) =>
-              gsap.fromTo(
-                el,
-                { y: 24 },
-                {
-                  y: 0,
-                  duration: 1,
-                  ease: "power2.out",
-                  scrollTrigger: { trigger: el, start: "top 92%", once: true },
-                },
-              ),
-            );
+          gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) =>
+            gsap.fromTo(
+              el,
+              { y: 24 },
+              {
+                y: 0,
+                duration: 1,
+                ease: "power2.out",
+                scrollTrigger: { trigger: el, start: "top 92%", once: true },
+              },
+            ),
+          );
         }, ref);
         cleanup = () => ctx.revert();
       },
