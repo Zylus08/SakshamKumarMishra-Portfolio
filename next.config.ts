@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  // Opt-in for memory-constrained local builds; deployed defaults are unchanged.
+  experimental:
+    process.env.SKM_LOW_MEMORY_BUILD === "1" ? { cpus: 2 } : undefined,
   async headers() {
     return [
       {

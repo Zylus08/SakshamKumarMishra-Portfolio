@@ -9,8 +9,8 @@
 
 ## Required before a credible public launch
 
-- [ ] Confirm public email address.
-- [ ] Confirm exact GitHub and LinkedIn profile URLs.
+- [x] Public email supplied in Milestone 2.1: mishrasaksham080705@gmail.com.
+- [x] Exact GitHub and LinkedIn URLs supplied and integrated in Milestone 2.1; LeetCode and CSES also supplied. Codeforces remains unconfigured.
 - [ ] Supply and approve CV PDF.
 - [ ] Confirm each project's actual stage, ownership, dates, and repository.
 - [ ] Confirm H-STAR expansion, scientific objective, methods, data, evaluation, and results.

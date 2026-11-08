@@ -59,3 +59,5 @@ The brief provides identity and candidate project topics, not source repositorie
 The production build uses Webpack because the initial Turbopack run stalled on this Windows host. For the installed Chrome browser, set `PLAYWRIGHT_CHANNEL=chrome`; otherwise install the Playwright Chromium build as shown above.
 
 Before public launch, complete the content verification checklist. The application can be reviewed locally without those personal assets.
+
+For a constrained local host, set `SKM_LOW_MEMORY_BUILD=1` to cap build workers at two. If port 3000 is occupied, set `SKM_TEST_PORT=3100` for an isolated Playwright server; tests continue to force mock email delivery and never reuse an existing server.
