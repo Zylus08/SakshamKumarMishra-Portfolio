@@ -1,0 +1,46 @@
+---
+title: "MeshNet"
+summary: "An Android mesh-communication prototype with modular transports and application-layer packet fragmentation."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Android", "BLE", "Offline networking"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/MeshNet"
+evidence: {"repository": "Zylus08/MeshNet", "commit": "23f7a3dd0e3033d86542d4440291a41e5c868772", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Short-range links have bounded packet sizes and intermittent connectivity. MeshNet explores an offline communication stack around those constraints.
+
+## Architecture
+
+The Kotlin multi-module layout separates transport, routing, protocol, storage, cryptography, and application features. The BLE layer includes fragmentation and reassembly components.
+
+<Diagram steps="Payload|BLE fragments|Reassembly" />
+
+## Implementation
+
+The inspected fragmenter emits a four-byte header containing flags, an eight-bit sequence number, and a transfer identifier. It splits payloads to a configured size and handles single-fragment messages separately.
+
+## Results
+
+VERIFIED: application-layer fragmentation and the module interfaces exist. Device-to-device operation, battery behavior, mesh scale, and cryptographic security were not independently validated in this review.
+
+## Limitations
+
+Physical-device tests are needed across MTUs, packet loss, sequence wraparound, and reconnects. The presence of X3DH and ratchet modules is not a security certification. The inspected LICENSE contains Apache 2.0 text, while API license detection was inconclusive.
+
+## Reproducibility
+
+Reviewed at commit [`23f7a3dd0e30`](https://github.com/Zylus08/MeshNet/tree/23f7a3dd0e3033d86542d4440291a41e5c868772) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [core/mesh/src/main/kotlin/net/meshnet/core/mesh/ble/PacketFragmenter.kt](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/core/mesh/src/main/kotlin/net/meshnet/core/mesh/ble/PacketFragmenter.kt)
+- [README.md](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/README.md)
+- [LICENSE](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/LICENSE)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

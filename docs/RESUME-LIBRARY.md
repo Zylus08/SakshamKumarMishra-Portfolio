@@ -1,6 +1,8 @@
 # Resume and academic CV library
 
-The four initial categories are Software Engineering, Machine Learning / AI, Quantitative Research, and Academic / Research CV. Their metadata lives in `src/lib/assets.ts` as typed `ProfessionalDocument` records. No PDF was supplied or manufactured for the public site.
+The four categories are Software Engineering, Machine Learning / AI, Quantitative Research, and Academic / Research CV. Their metadata lives in `src/lib/assets.ts` as typed `ProfessionalDocument` records. Milestone 2.2 integrates the supplied `Saksham_Mishra_SWE_Resume.pdf`, `Saksham_Mishra_ML_Resume.pdf`, and `Saksham_Mishra_Quant_Resume.pdf` unchanged. The academic CV remains `null` and has no download/preview link.
+
+All three documents were parsed and visually reviewed (SWE and ML: one page each; Quant: two pages). They identify Saksham Mishra and match the intended categories. Their education lists IIT Bombay while the portfolio lists Thapar; resolve this discrepancy before launch. Supplied achievement/benchmark claims and embedded links are not independently verified by integration. No claims were copied into website content. See `MILESTONE-2.2-REPORT.md`.
 
 ## Add or replace a document
 

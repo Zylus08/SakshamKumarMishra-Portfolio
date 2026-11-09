@@ -1,0 +1,42 @@
+---
+title: "Sama Engine — Maintenance Contributions"
+summary: "Scoped contributions to a collaborative maintenance engine, with merged changes distinguished from proposed work."
+category: "Applications & Engineering"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Python", "RAG integration", "Open-source contribution"]
+date: "2026-11-09"
+code: "https://github.com/Foldinc/sama-engine"
+evidence: {"repository": "Foldinc/sama-engine", "commit": "c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A maintenance workflow needs to pass analysis findings into its knowledge and retrieval components.
+
+## Implementation
+
+The inspected merged changes add issue indexing to the retrieval agent, construct typed knowledge entries, rename a database column to reference_links, and initialize retrieval in the orchestration path.
+
+## Contribution
+
+Zylus08 authored merged pull requests #2, #7, and #8. This entry focuses on the inspected #8 patch and its presence in the reviewed default-branch source. PR #12 was unmerged at review; its proposed work is not presented as an upstream release.
+
+## Results
+
+VERIFIED: PR #8 is merged and the reviewed source contains its issue-indexing and schema changes. No independent end-to-end maintenance or retrieval-quality measurement was performed.
+
+## Limitations
+
+The fallback embedding is a one-dimensional Python hash value, not a semantic representation. When an event loop is already running, initialization is scheduled without awaiting completion before the synchronous workflow proceeds. Successful initialization and vector-store compatibility require targeted tests. This is a contribution to a shared project, not sole authorship.
+
+## Reproducibility
+
+Reviewed at commit [`c2ed9df9dcb4`](https://github.com/Foldinc/sama-engine/tree/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [scripts/rag_agent.py](https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/rag_agent.py)
+- [scripts/knowledge_base.py](https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/knowledge_base.py)
+- [scripts/orchestration_agent.py](https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/orchestration_agent.py)
+
+Contribution record: [merged pull request #8](https://github.com/Foldinc/sama-engine/pull/8).

@@ -1,0 +1,53 @@
+---
+title: "FlowState"
+summary: "A market-making research simulator that makes queue position, quote latency, inventory, and adverse selection explicit."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: true
+tier: "Case study"
+tags: ["Market making", "Queue models", "Simulation"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/FlowState"
+evidence: {"repository": "Zylus08/FlowState", "commit": "d0410dab812dd51d0603c1d089a4e49f73bddd8b", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A quote touching the market is not sufficient evidence that an order would fill. FlowState investigates market-making behavior through simulated execution and post-fill price movement.
+
+## Architecture
+
+The source separates market-data ingestion, features, quote generation, and a local PaperExecutionSimulator. Research modules add synthetic scenarios, queue models, latency experiments, and inventory diagnostics.
+
+<Diagram steps="Book snapshots|Quotes|Simulated fills" />
+
+## Implementation
+
+The execution model combines a crossing condition with a queue-depth and price-penetration probability. It tracks maker fees, delayed quote eligibility, inventory bounds, and later markouts. These are model assumptions, not reconstructions of an exchange matching engine.
+
+The code defines signed markout as $s(m_{t+h}-m_t)q$, with buy-side sign $s=1$. This measures simulated post-fill price movement; it is not a realized return.
+
+## Engineering decisions
+
+Separating execution from strategy makes optimistic fill assumptions easier to challenge. A seeded fill generator supports repeatable simulations; realistic calibration still requires representative venue data.
+
+## Results
+
+VERIFIED by source inspection: simulated fill records contain inventory, fee, edge, and markout fields. The default configuration includes quote latency and an inventory limit. DOCUMENTED experiment reports are available, but no live-capital performance or independent return estimate is asserted.
+
+## Limitations
+
+The default maker fee is zero, so reported net performance requires inspecting the configuration used for each run. Queue position and penetration remain approximations. Historical, synthetic, and paper execution must be compared separately; a live data feed does not establish live trading.
+
+## Reproducibility
+
+Reviewed at commit [`d0410dab812d`](https://github.com/Zylus08/FlowState/tree/d0410dab812dd51d0603c1d089a4e49f73bddd8b) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [src/execution.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/src/execution.py)
+- [src/strategy.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/src/strategy.py)
+- [research/queue_model.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/queue_model.py)
+- [research/latency_sim.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/latency_sim.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

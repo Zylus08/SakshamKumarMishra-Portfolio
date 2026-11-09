@@ -62,10 +62,12 @@ test("search, category, view and research status controls", async ({
 }) => {
   await page.goto("/projects");
   await page
-    .getByRole("button", { name: "Systems Engineering", exact: true })
+    .getByRole("button", { name: "Systems & Infrastructure", exact: true })
     .click();
-  await expect(page.locator(".entry")).toHaveCount(1);
-  await expect(page.locator(".entry")).toContainText("HydraStream");
+  await expect(page.locator(".entry")).toHaveCount(3);
+  await expect(
+    page.locator(".entry").filter({ hasText: "Kamish" }),
+  ).toHaveCount(1);
   await page.getByRole("button", { name: "All", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Search projects" })
@@ -78,15 +80,20 @@ test("search, category, view and research status controls", async ({
     .fill("no matching project");
   await expect(page.getByText("No entries here. Yet.")).toBeVisible();
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await expect(page.locator(".entry")).toHaveCount(3);
+  await expect(page.locator(".entry")).toHaveCount(24);
   await page.goto("/research");
   await page
     .getByLabel("Filter research status")
     .selectOption("Verification pending");
-  await expect(page.locator(".entry")).toHaveCount(3);
+  await expect(page.locator(".entry")).toHaveCount(2);
 });
 test("palette keyboard, focus restoration and navigation", async ({ page }) => {
   await page.goto("/");
+  // The button interaction establishes hydration before testing the window shortcut.
+  await page.getByRole("button", { name: "Open command palette" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.keyboard.press("Control+k");
   const search = page.getByRole("combobox");
   await expect(search).toBeFocused();

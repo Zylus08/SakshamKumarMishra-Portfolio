@@ -1,0 +1,47 @@
+---
+title: "Satoshi_Flow"
+summary: "A Bitcoin bar-by-bar backtester with next-open signal execution, fees, slippage, and gap-aware stops."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Bitcoin", "Event-driven backtesting", "Risk controls"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Satoshi_Flow"
+evidence: {"repository": "Zylus08/Satoshi_Flow", "commit": "0fe06286b3b86263c184c6b543b46d0fd7bd396f", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A signal generated at a bar's close should not receive that bar's opening price. Satoshi_Flow makes the execution timeline explicit.
+
+## Architecture
+
+Indicators and signals feed an event-driven backtester. Portfolio accounting tracks cash and holdings; a risk manager sizes positions and calculates stop levels.
+
+<Diagram steps="Close signal|Next open|Portfolio accounting" />
+
+## Implementation
+
+The loop executes pending signals at the following open, applies directional slippage and fees, and checks the low against a previously established stop. Gap-down execution uses the lower of open and stop before slippage. Trailing stops update after that check.
+
+## Results
+
+VERIFIED by source inspection: the described ordering and cost hooks are implemented. The repository includes validation and robustness artifacts, but their returns have not been independently reproduced here.
+
+## Limitations
+
+OHLC bars cannot identify every intrabar path or exchange fill. Liquidity, market impact, data selection, and parameter selection remain important assumptions. This is historical simulation, not evidence of paper or live capital deployment.
+
+## Reproducibility
+
+Reviewed at commit [`0fe06286b3b8`](https://github.com/Zylus08/Satoshi_Flow/tree/0fe06286b3b86263c184c6b543b46d0fd7bd396f) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [backtester/engine.py](https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/backtester/engine.py)
+- [portfolio/risk.py](https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/portfolio/risk.py)
+- [portfolio/accounting.py](https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/portfolio/accounting.py)
+- [research/validation.py](https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/research/validation.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

@@ -20,25 +20,21 @@ Write the article here. Math is supported: $y = f(x)$.
 <Note>State assumptions and limitations explicitly.</Note>
 
 <Diagram
-  steps={["Input", "Transform", "Output"]}
+  steps="Input|Transform|Output"
   caption="Explain what the diagram represents."
 />
 ```
 
-Required fields: title, summary, category, status. Optional: featured, tags, date (quoted ISO date), paper/code/dataset (absolute valid URLs), citation, cover (public image path), coverAlt. Status values: Published, Accepted, Under review, Submitted, Preprint, Ongoing, Independent exploration, Verification pending, Draft. Use only a supported, evidenced status. Draft entries are publicly readable if added; this is not a private draft CMS.
+Required fields: title, summary, category, status. Optional: featured, tier (Flagship, Case study, Archive, Experiment), tags, date (quoted ISO date), paper/code/dataset (HTTPS URLs without credentials), citation, cover (public image path), coverAlt, and evidence (repository, 40-character commit, reviewed ISO date). Project categories are centralized in `src/lib/project-categories.ts`. Status values: Published, Accepted, Under review, Submitted, Preprint, Ongoing, Independent exploration, Verification pending, Draft. Use only a supported, evidenced status. Draft entries are publicly readable if added; this is not a private draft CMS.
 
-Use level-two plain-text headings for automatic table-of-contents links. Keep headings unique. Code fences, math via remark-math/KaTeX, images, Note, Diagram, and BenchmarkTable are supported. Markdown pipe tables require an additional GFM plugin; use BenchmarkTable for structured data with the current configuration. For a guaranteed benchmark table use:
+Use level-two plain-text headings for automatic table-of-contents links. Keep headings unique. Code fences, math via remark-math/KaTeX, images, Note, and Diagram are supported. MDX JavaScript expressions are blocked; use literal pipe-separated Diagram labels, not array expressions. The BenchmarkTable React component accepts typed rows from application code, but MDX expression attributes are removed. Markdown pipe tables require an additional GFM plugin; for an authored MDX table use literal markup:
 
 ```mdx
-<BenchmarkTable
-  rows={[
-    {
-      metric: "Metric",
-      value: "Verified value",
-      context: "Hardware, workload, and method",
-    },
-  ]}
-/>
+<table>
+  <caption>Verified measurements and conditions</caption>
+  <thead><tr><th>Metric</th><th>Value</th><th>Conditions</th></tr></thead>
+  <tbody><tr><td>Metric</td><td>Verified value</td><td>Hardware, workload, method</td></tr></tbody>
+</table>
 ```
 
 Do not add illustrative benchmark numbers to real case studies. Add local images under `public/images` and provide alt text; cover images use Next Image. Do not add remote image hosts without configuring an explicit allowlist.

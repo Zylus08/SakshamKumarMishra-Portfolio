@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { getEntries, kinds, type Kind } from "@/lib/content";
 import { Explorer } from "@/components/explorer";
+import { CategoryCover } from "@/components/category-cover";
+import { writingCovers } from "@/lib/assets";
+import { Reveal } from "@/components/reveal";
 const descriptions = {
   research: {
     title: "Questions worth pursuing.",
@@ -43,19 +46,29 @@ export default async function Collection({
   const kind = collection as Kind;
   const copy = descriptions[kind];
   return (
-    <div className="section archive">
-      <header className="page-heading">
-        <p className="eyebrow">SKM / {collection.toUpperCase()}</p>
-        <h1>{copy.title}</h1>
-        <p>{copy.intro}</p>
-      </header>
-      <Explorer
-        kind={kind}
-        entries={getEntries(kind).map(({ body, ...entry }) => {
-          void body;
-          return entry;
-        })}
-      />
-    </div>
+    <Reveal>
+      <div className="section archive">
+        <header className="page-heading">
+          <p className="eyebrow">SKM / {collection.toUpperCase()}</p>
+          <h1>{copy.title}</h1>
+          <p>{copy.intro}</p>
+        </header>
+        <Explorer
+          kind={kind}
+          covers={
+            kind === "writing"
+              ? writingCovers.map(({ category, photo }) => ({
+                  category,
+                  image: <CategoryCover photo={photo} />,
+                }))
+              : []
+          }
+          entries={getEntries(kind).map(({ body, ...entry }) => {
+            void body;
+            return entry;
+          })}
+        />
+      </div>
+    </Reveal>
   );
 }

@@ -7,11 +7,16 @@ import { ContactForm } from "@/components/contact-form";
 import { Photograph } from "@/components/photograph";
 import { photographs } from "@/lib/assets";
 import { getEntries } from "@/lib/content";
+import { homepageProjectLimit } from "@/lib/project-categories";
 import { profile, origin } from "@/lib/profile";
 export const metadata = { alternates: { canonical: "/" } };
 export default function Home() {
-  const research = getEntries("research"),
-    projects = getEntries("projects");
+  const research = getEntries("research")
+      .filter((entry) => entry.featured)
+      .slice(0, 3),
+    projects = getEntries("projects")
+      .filter((entry) => entry.featured)
+      .slice(0, homepageProjectLimit);
   return (
     <Reveal>
       <script
@@ -36,16 +41,18 @@ export default function Home() {
         </div>
         <div className="hero-copy">
           <p className="eyebrow">SAKSHAM KUMAR MISHRA</p>
-          <h1>
-            The pursuit of
-            <br />
-            <em>understanding.</em>
+          <div className="hero-heading">
+            <h1>
+              The pursuit of
+              <br />
+              <em>understanding.</em>
+            </h1>
+            <Photograph photo={photographs.portrait} compact />
+          </div>
+          <div className="hero-intro">
             <span className="hero-asterisk" aria-hidden="true">
               ✳
             </span>
-          </h1>
-          <div className="hero-intro">
-            <Photograph photo={photographs.portrait} compact />
             <p>
               I’m Saksham. I explore machine intelligence, engineer complex
               systems, and occasionally write about everything in between.
@@ -157,11 +164,11 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="broker-art">
-                    <span>PRODUCE</span>
+                    <span>{e.tags[0]}</span>
                     <b>→</b>
-                    <span>STREAM</span>
+                    <span>{e.tags[1]}</span>
                     <b>→</b>
-                    <span>CONSUME</span>
+                    <span>{e.tags[2]}</span>
                   </div>
                 )}
               </div>
@@ -222,9 +229,23 @@ export default function Home() {
             the familiar feel different. There is a life outside the editor, and
             it has a way of finding its way back into the work.
           </p>
-          <Link className="text-link" href="/about">
-            Meet the person behind the work ↗
-          </Link>
+          <div className="personal-redirects">
+            <Link href="/writing" className="personal-redirect">
+              <h3>Words beyond code.</h3>
+              <p>Poetry, reflections, and unfinished thoughts.</p>
+              <span className="text-link">
+                Explore the writing{" "}
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </span>
+            </Link>
+            <Link href="/about" className="personal-redirect">
+              <h3>The person behind the projects.</h3>
+              <p>A little about where I come from and what keeps me curious.</p>
+              <span className="text-link">
+                Get to know me <ArrowUpRight size={16} aria-hidden="true" />
+              </span>
+            </Link>
+          </div>
           <details className="easter-egg">
             <summary>A small note from Delhi</summary>
             <p>

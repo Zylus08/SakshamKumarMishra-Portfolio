@@ -1,0 +1,54 @@
+---
+title: "RiskLab"
+summary: "Volatility-targeted momentum and tail-risk experiments with explicit turnover costs and a reproducible subset of offline tests."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: true
+tier: "Case study"
+tags: ["Risk modeling", "Volatility targeting", "Python"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/RiskLab"
+evidence: {"repository": "Zylus08/RiskLab", "commit": "971422295d94772d7f792753a5ba889da204ce74", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Risk targeting changes both market exposure and trading costs. RiskLab provides a small, inspectable research setting for studying that interaction.
+
+## Architecture
+
+Python modules separate signals, volatility scaling, backtesting, metrics, tail estimation, and stress testing. A separate C++ Monte Carlo extension is present; it was not loaded or benchmarked in this review.
+
+<Diagram steps="Lagged signals|Risk scaling|Net returns" />
+
+## Implementation
+
+The backtester multiplies supplied signal and volatility exposure, computes turnover from position differences, and deducts basis-point costs. Its contract expects signals and scaling to be shifted before entry.
+
+The inspected accounting computes $r_t^{net}=p_t r_t-c\lvert p_t-p_{t-1}\rvert$, where $c$ is the basis-point cost converted to a fraction. Neutral-date filtering limits how this expression maps to the full trading calendar.
+
+## Engineering decisions
+
+Keeping the accounting function small makes cost arithmetic testable. Causality is a pipeline property: a prefix-stability test of one signal cannot certify all preprocessing and exposure calculations.
+
+## Results
+
+VERIFIED: 13 existing tests passed in an isolated copy on 9 November 2026, covering backtest columns/accounting, signal prefix stability, volatility, and metrics. This is a selected offline subset, not a full research reproduction or C++ speed benchmark.
+
+## Limitations
+
+The backtester removes neutral-signal dates before calculating turnover and wealth. Exit costs and calendar-consistent benchmark comparison therefore need review. The tests that passed do not establish profitable out-of-sample performance.
+
+## Reproducibility
+
+Reviewed at commit [`971422295d94`](https://github.com/Zylus08/RiskLab/tree/971422295d94772d7f792753a5ba889da204ce74) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. Four isolated accounting, signal, volatility, and metrics test modules passed (13 tests). The full repository and performance benchmarks were not rerun.
+
+- [src/backtest.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/backtest.py)
+- [src/signals.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/signals.py)
+- [src/volatility.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/volatility.py)
+- [tests/test_no_lookahead.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_no_lookahead.py)
+- [tests/test_backtest.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_backtest.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

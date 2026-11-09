@@ -1,0 +1,36 @@
+---
+title: "Resume–JD Semantic Matcher"
+summary: "A compact semantic retrieval API using normalized embeddings and inner-product search."
+category: "Machine Learning & AI"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Embeddings", "FAISS", "Retrieval"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/resume_jd_match"
+evidence: {"repository": "Zylus08/resume_jd_match", "commit": "b268ee2fcb7dadb2e6f54c3395bcc491672612d1", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+The project explores ranking résumé text against a job-description query.
+
+## Implementation
+
+The inspected matcher creates a 384-dimensional FAISS IndexFlatIP, normalizes document and query vectors, and returns nearest-neighbor scores and identifiers.
+
+## Results
+
+VERIFIED by source inspection: normalized inner-product retrieval is implemented. Ranking quality and hiring validity have not been established.
+
+## Limitations
+
+Similarity is not evidence of job performance or candidate suitability. Document privacy, retrieval evaluation, and input handling remain deployment considerations.
+
+## Reproducibility
+
+Reviewed at commit [`b268ee2fcb7d`](https://github.com/Zylus08/resume_jd_match/tree/b268ee2fcb7dadb2e6f54c3395bcc491672612d1) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [matcher.py](https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/matcher.py)
+- [embedder.py](https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/embedder.py)
+- [main.py](https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/main.py)

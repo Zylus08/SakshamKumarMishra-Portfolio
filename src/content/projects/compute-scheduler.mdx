@@ -1,0 +1,46 @@
+---
+title: "Fault-tolerant Compute Scheduler"
+summary: "A job-scheduling demonstration with simulated Raft coordination and an interactive cluster dashboard."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Python", "Scheduling", "Consensus simulation"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler"
+evidence: {"repository": "Zylus08/Fault-tolerant-Compute-Scheduler", "commit": "445baf9c8a339e81dedce93fbbac7b59230429bd", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Scheduling must respond to resource availability and failed workers. This project combines scheduling policies, job state, recovery, and a visual cluster interface.
+
+## Architecture
+
+Python modules separate control-plane logic, simulated nodes, execution, heartbeats, retries, storage, and API routes. The frontend uses Next.js and a three-dimensional cluster view.
+
+<Diagram steps="Job queue|Scheduler|Simulated workers" />
+
+## Implementation
+
+The inspected Raft module models terms, votes, log entries, append requests, and leader state. Its own implementation explicitly describes a single-process simulation; persistent state is held in memory.
+
+## Results
+
+VERIFIED: consensus state structures and simulation-oriented control flow exist. The README's production-quality language is not supported by distributed deployment evidence in this audit.
+
+## Limitations
+
+Single-process simulation does not validate network partitions, durable consensus recovery, or behavior across independent hosts. Dashboard node counts are not a measured cluster deployment.
+
+## Reproducibility
+
+Reviewed at commit [`445baf9c8a33`](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/tree/445baf9c8a339e81dedce93fbbac7b59230429bd) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [src/control_plane/raft_consensus.py](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/control_plane/raft_consensus.py)
+- [src/scheduler/scheduling_algorithms.py](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/scheduler/scheduling_algorithms.py)
+- [README.md](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/README.md)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

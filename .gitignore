@@ -9,3 +9,4 @@ playwright-report/
 .browsers/
 .tmp/
 artifacts/
+assets/source-photos/

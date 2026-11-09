@@ -1,0 +1,46 @@
+---
+title: "Neural-Surrogate Monte Carlo Collision Simulator"
+summary: "A simplified particle-collision simulator paired with a neural regression surrogate and an explanatory dashboard."
+category: "Scientific Computing & Simulation"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Monte Carlo", "Relativistic kinematics", "Neural surrogates"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator"
+evidence: {"repository": "Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator", "commit": "99574db97977ca93543b023ffa68450d53aa9984", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A surrogate can approximate simulator outputs, but its usefulness depends on the simulator's physical assumptions and evaluation protocol.
+
+## Architecture
+
+NumPy-based kinematics and event simulation feed a dataset pipeline. A PyTorch surrogate trains on saved arrays, and a dashboard presents simulations and results.
+
+<Diagram steps="Sample events|Kinematic simulator|Learned surrogate" />
+
+## Implementation
+
+The physics module computes momentum magnitudes and invariant mass and provides a simplified two-body energy calculation. The training script uses MSE, Adam, shuffled minibatches, and a held-out array for evaluation.
+
+## Results
+
+VERIFIED: the kinematic functions and surrogate training loop are implemented. No independently reproduced speedup, detector realism, or physical-discovery result is claimed.
+
+## Limitations
+
+The module explicitly leaves full frame transformations and detector noise as future work. Clamping final-state energies is not a general conservation proof for forbidden configurations. Training reproducibility and out-of-distribution validation require further work.
+
+## Reproducibility
+
+Reviewed at commit [`99574db97977`](https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/tree/99574db97977ca93543b023ffa68450d53aa9984) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [particle-collision-simulator/src/physics.py](https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/particle-collision-simulator/src/physics.py)
+- [ml/train_surrogate.py](https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/ml/train_surrogate.py)
+- [ml/prepare_dataset.py](https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/ml/prepare_dataset.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

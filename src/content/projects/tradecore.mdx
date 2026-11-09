@@ -1,52 +1,53 @@
 ---
 title: "TradeCore"
-summary: "A low-latency C++ order book and matching engine project."
-category: "Quantitative Research"
-status: Verification pending
+summary: "A bounded-memory matching-engine prototype, examined through correctness invariants and the limits of its latency claims."
+category: "Quantitative Finance"
+status: "Independent exploration"
 featured: true
-tags: ["C++", "Order book", "Matching engine"]
+tier: "Case study"
+tags: ["C++20", "Order books", "Deterministic replay"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/TradeCore"
+evidence: {"repository": "Zylus08/TradeCore", "commit": "fed1e79d7d144a6485055585a42a32a4864b93ea", "reviewed": "2026-11-09"}
 ---
 
-<Note>
-  Candidate case study supplied in the portfolio brief. Project stage, methods,
-  authorship details, and outcomes have not yet been verified. This page
-  introduces the topic; it does not report completed work.
-</Note>
+## Problem
 
-## Problem statement
-
-How can an order book make matching behavior explicit while controlling the cost of each operation?
-
-## Project overview
-
-A low-latency C++ order book and matching engine project. The scope described here comes from the project brief. A full technical account will be added after supporting material is available.
-
-## Engineering decisions
-
-The final case study should explain the chosen data structures, interfaces, and trade-offs using evidence from the implementation. Those decisions are not yet documented here.
-
-## Implementation details
-
-Source code and implementation notes have not been supplied. No implementation or deployment claims are made.
+An exchange-style order book must maintain price priority while handling partial fills and conserving volume. TradeCore explores how preallocated storage and explicit invariants can make this behavior inspectable.
 
 ## Architecture
 
-<Diagram steps={["Input", "Core system", "Output"]} />
+The inspected matcher applies a templated risk pipeline, scans liquidity for fill-or-kill requests, matches against the opposite book side, and inserts residual limit orders. AVL price levels and pooled orders separate price lookup from order storage.
 
-This diagram is a conceptual reading aid, not an architecture recovered from source code.
+<Diagram steps="Risk checks|Order book|Fill records" />
 
-## Testing methodology
+## Implementation
 
-The verified case study should include correctness checks, failure cases, reproducible workloads, and the conditions of any performance measurements.
+The risk pipeline evaluates a tuple of rules using a short-circuit fold expression. The matcher contains debug assertions for trade quantities, resting prices, and the conservation of filled plus remaining volume. StaticVector uses inline arrays rather than an unbounded result container.
+
+## Engineering decisions
+
+Fixed capacities make memory budgets explicit, but capacity exhaustion needs defined behavior. The implementation uses steady-clock timestamps; deterministic book-state reconstruction should not be confused with byte-identical timestamped outputs.
 
 ## Results
 
-No verified benchmarks or implementation outcomes are available for this note.
+VERIFIED by source inspection: price-constrained matching, compile-time risk-rule composition, and conservation assertions exist. DOCUMENTED only: allocator timing artifacts and README latency contracts. The contracts are targets, not independently measured P99 results.
 
 ## Limitations
 
-The current description is limited to the topic supplied in the brief. It should not be treated as a publication, a reproducibility report, or evidence of production deployment.
+The fill-or-kill prescan counts total opposing liquidity without receiving a limit price, whereas the matching loop enforces that price. This can admit a request that cannot be completely filled at its limit. RiskResult contains std::string and long rejection messages, so a universal zero-allocation claim is unsupported. The contract checker can report success when no matching benchmark rows exist. No institutional-readiness claim is made.
 
-## Future work
+## Reproducibility
 
-Confirm the repository and implementation scope, document the architecture, and add reproducible tests before expanding this case study.
+Reviewed at commit [`fed1e79d7d14`](https://github.com/Zylus08/TradeCore/tree/fed1e79d7d144a6485055585a42a32a4864b93ea) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [include/tradecore/matching/matching_engine.hpp](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/matching_engine.hpp)
+- [include/tradecore/matching/liquidity_analyzer.hpp](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/liquidity_analyzer.hpp)
+- [include/tradecore/matching/risk_pipeline.hpp](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/risk_pipeline.hpp)
+- [include/tradecore/common/static_vector.hpp](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/common/static_vector.hpp)
+- [scripts/validate_contracts.py](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/scripts/validate_contracts.py)
+- [benchmarks/results/allocator_baseline.json](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/benchmarks/results/allocator_baseline.json)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

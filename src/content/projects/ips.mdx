@@ -1,0 +1,36 @@
+---
+title: "IPS Time-series Experiments"
+summary: "A forecasting experiment harness comparing model wrappers across time-series datasets."
+category: "Scientific Computing & Simulation"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Forecasting", "Benchmark protocols", "Python"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/IPS"
+evidence: {"repository": "Zylus08/IPS", "commit": "8d340b45b82409d33bb860ab16bd8fc549fcb066", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Forecasting comparisons need consistent data splits, horizons, metrics, and compute conditions.
+
+## Implementation
+
+The inspected experiment runner registers PatchTST, TimesNet, NHITS, Prophet, and Chronos wrappers, sets NumPy and PyTorch seeds, and calls split/window utilities across a dataset registry.
+
+## Results
+
+VERIFIED: model registration and experiment orchestration are implemented. This audit does not reproduce the model rankings.
+
+## Limitations
+
+The runner contains absolute local dataset paths. Portable dataset provisioning, wrapper parity, and split consistency need verification before comparative performance claims.
+
+## Reproducibility
+
+Reviewed at commit [`8d340b45b824`](https://github.com/Zylus08/IPS/tree/8d340b45b82409d33bb860ab16bd8fc549fcb066) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [run_experiment.py](https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/run_experiment.py)
+- [utils/data_loader.py](https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/utils/data_loader.py)
+- [models/registry.py](https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/models/registry.py)

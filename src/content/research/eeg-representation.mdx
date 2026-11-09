@@ -1,52 +1,35 @@
 ---
 title: "Self-Supervised EEG Representation Learning"
-summary: "Self-supervised EEG representation learning for sleep apnea detection."
+summary: "An exploration of temporal contrastive learning, subject-level evaluation, and the limits of apparent gains."
 category: "Time-series Modeling"
-status: Verification pending
+status: "Independent exploration"
 featured: true
-tags: ["EEG", "Self-supervised learning", "Time series"]
+tags: ["Research notes", "Reproducibility"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/SleepApnea"
+evidence: {"repository": "Zylus08/SleepApnea", "commit": "5d86a6be99cdbaf091e0f9430416e229656a39d0", "reviewed": "2026-11-09"}
 ---
-
-<Note>
-  Candidate research note supplied in the portfolio brief. Project stage,
-  methods, authorship details, and outcomes have not yet been verified. This
-  page introduces the topic; it does not report completed work.
-</Note>
 
 ## Research question
 
-Can self-supervised representations of EEG support sleep apnea detection with fewer labeled examples?
-
-## Abstract
-
-Self-supervised EEG representation learning for sleep apnea detection. The scope described here comes from the project brief. A full technical account will be added after supporting material is available.
-
-## Motivation
-
-The central interest is in useful representations under practical constraints. Specific hypotheses and comparisons are awaiting the research notes.
+Can temporal structure help learn useful EEG representations without relying on labels for every training example?
 
 ## Methodology
 
-Model design, preprocessing, training objectives, and baselines are awaiting verification.
-
-## Architecture
-
-<Diagram steps={["Observations", "Representation", "Evaluation"]} />
-
-This diagram is a conceptual reading aid, not an architecture recovered from source code.
-
-## Experimental setup
-
-Dataset provenance, participant-level splits where relevant, hardware, seeds, and evaluation metrics must be documented before results are shared.
+The public SleepApnea extension implements temporal contrastive objectives and an ablation pipeline with subject-level train, validation, and test partitions. Self-supervised fitting uses the training partition; validation selects checkpoints before test evaluation. This is an extension of a forked dataset repository, not ownership of the original dataset.
 
 ## Results
 
-No verified experimental results are available for this note.
+The repository’s final experimental-status report invalidates earlier multiseed rankings after a seed-handling bug. Its corrected runs show substantial variability and do not support a robust improvement claim. These are documented findings, not training runs reproduced in this portfolio audit.
 
 ## Limitations
 
-The current description is limited to the topic supplied in the brief. It should not be treated as a publication, a reproducibility report, or evidence of production deployment.
+No clinical effectiveness, diagnostic accuracy, transfer benefit, publication acceptance, or independent replication is established. Subject-level partitions alone do not settle all preprocessing and repeated-selection risks.
 
 ## Reproducibility
 
-Code, data access instructions, dependency versions, and exact experiment commands will be linked when verified.
+Reviewed on 2026-11-09 at commit `5d86a6be99cdbaf091e0f9430416e229656a39d0`. Evidence is source inspection and repository-authored reporting, not an independent experimental replication.
+
+- [SleepApneaSSL/experiments/loss_ablation.py](https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/experiments/loss_ablation.py)
+- [SleepApneaSSL/temporal_loss.py](https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/temporal_loss.py)
+- [SleepApneaSSL/experiment_reports/P0_FINAL_EXPERIMENTAL_STATUS.md](https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/experiment_reports/P0_FINAL_EXPERIMENTAL_STATUS.md)

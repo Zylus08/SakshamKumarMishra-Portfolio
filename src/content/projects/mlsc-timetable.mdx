@@ -1,0 +1,35 @@
+---
+title: "MLSC Timetable Parser"
+summary: "A Go utility for converting structured timetable spreadsheets into lecture records."
+category: "Applications & Engineering"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Go", "Excel parsing", "Scheduling tools"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/mlsc-timetable"
+evidence: {"repository": "Zylus08/mlsc-timetable", "commit": "cbd082eafd24b290391145cb0399e81c6b41303c", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Institutional spreadsheets often encode schedules through merged cells and visual layout rather than normalized data.
+
+## Implementation
+
+The parser uses Excelize, discovers batch headers, reads merged-cell day ranges, and extracts subject, faculty, room, and time information using layout heuristics.
+
+## Results
+
+VERIFIED: spreadsheet-to-lecture parsing is implemented. Compatibility with arbitrary timetable formats is not established.
+
+## Limitations
+
+Fixed header rows and heuristic room/faculty detection make the parser format-dependent. Unsupported layouts can be skipped rather than diagnosed explicitly.
+
+## Reproducibility
+
+Reviewed at commit [`cbd082eafd24`](https://github.com/Zylus08/mlsc-timetable/tree/cbd082eafd24b290391145cb0399e81c6b41303c) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [internal/parser/excel_parser.go](https://github.com/Zylus08/mlsc-timetable/blob/cbd082eafd24b290391145cb0399e81c6b41303c/internal/parser/excel_parser.go)
+- [server.go](https://github.com/Zylus08/mlsc-timetable/blob/cbd082eafd24b290391145cb0399e81c6b41303c/server.go)

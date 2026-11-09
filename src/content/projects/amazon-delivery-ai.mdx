@@ -1,0 +1,36 @@
+---
+title: "Delivery-risk Modeling"
+summary: "A delivery-risk modeling pipeline combining classical models, neural models, and explanation tools."
+category: "Machine Learning & AI"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Tabular ML", "Explainability", "Model comparison"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Amazon-delivery-AI-project"
+evidence: {"repository": "Zylus08/Amazon-delivery-AI-project", "commit": "a85a7c6630673c8e2759b8e182b76fc00b186fd8", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+The repository explores prediction and explanation for delivery-related records.
+
+## Implementation
+
+The main pipeline preprocesses data, trains multiple models including TabNet, evaluates predictions, and invokes SHAP and integrated-gradients explanations.
+
+## Results
+
+VERIFIED: orchestration for these components exists in main.py. No corporate endorsement or independently validated predictive performance is asserted.
+
+## Limitations
+
+The main pipeline passes X_test and y_test into the TabNet helper as its validation set, which is used for early stopping, then evaluates on those same records. This is not an untouched test estimate. Explanations do not establish causal factors.
+
+## Reproducibility
+
+Reviewed at commit [`a85a7c663067`](https://github.com/Zylus08/Amazon-delivery-AI-project/tree/a85a7c6630673c8e2759b8e182b76fc00b186fd8) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [main.py](https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/main.py)
+- [data/preprocess.py](https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/data/preprocess.py)
+- [models/train_tabnet.py](https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/models/train_tabnet.py)

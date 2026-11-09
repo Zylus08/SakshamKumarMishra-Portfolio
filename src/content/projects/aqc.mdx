@@ -1,0 +1,46 @@
+---
+title: "AQC"
+summary: "A modular quantitative research framework with event queues, simulated execution, and explicit paper-order lifecycle handling."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Event-driven systems", "Paper execution", "Portfolio research"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/AQC"
+evidence: {"repository": "Zylus08/AQC", "commit": "ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Research signals need an accounting and execution context before their behavior can be interpreted. AQC separates these responsibilities across an event-driven framework.
+
+## Architecture
+
+The BacktestEngine coordinates market, signal, order, and fill events. A separate PaperBroker registers orders, checks available market context, simulates partial fills, and updates order state.
+
+<Diagram steps="Market events|Order lifecycle|Simulated fills" />
+
+## Implementation
+
+The backtester preloads market columns into NumPy arrays. PaperBroker delegates fills to a simulator and charges commission; the inspected call supplies a fixed daily-volatility assumption and a fallback volume when reported volume is absent.
+
+## Results
+
+VERIFIED by source inspection: event orchestration and paper-broker state transitions exist. Directory names such as institutional, deployment, and live_capital do not prove institutional use or real-money trading.
+
+## Limitations
+
+Bar-by-bar iteration alone does not guarantee causality when a strategy can access data arrays. Same-bar fill timing, missing-volume defaults, fixed volatility, multiple-testing controls, and calibration require scrutiny before performance interpretation.
+
+## Reproducibility
+
+Reviewed at commit [`ce6f3cd172d3`](https://github.com/Zylus08/AQC/tree/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [aqc/backtester/engine.py](https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/backtester/engine.py)
+- [aqc/live/paper_broker.py](https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/live/paper_broker.py)
+- [aqc/live/fill_simulator.py](https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/live/fill_simulator.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

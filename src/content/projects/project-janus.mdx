@@ -1,52 +1,54 @@
 ---
 title: "Project Janus"
-summary: "Chess engine and neural evaluation research, at the intersection of search and learned representations."
-category: "Machine Learning"
-status: Verification pending
+summary: "Classical and neural chess-engine research that keeps search correctness, evaluator behavior, and playing strength separate."
+category: "Machine Learning & AI"
+status: "Independent exploration"
 featured: true
-tags: ["Chess", "Neural evaluation", "Search"]
+tier: "Flagship"
+tags: ["Chess search", "C++", "Neural evaluation"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Project-Janus"
+evidence: {"repository": "Zylus08/Project-Janus", "commit": "12fd92f436186348697a009bc597fe7110a5086d", "reviewed": "2026-11-09"}
 ---
 
-<Note>
-  Candidate case study supplied in the portfolio brief. Project stage, methods,
-  authorship details, and outcomes have not yet been verified. This page
-  introduces the topic; it does not report completed work.
-</Note>
+## Problem
 
-## Problem statement
-
-How can search and learned evaluation work together in a chess engine?
-
-## Project overview
-
-Chess engine and neural evaluation research, at the intersection of search and learned representations. The scope described here comes from the project brief. A full technical account will be added after supporting material is available.
-
-## Engineering decisions
-
-The final case study should explain the chosen data structures, interfaces, and trade-offs using evidence from the implementation. Those decisions are not yet documented here.
-
-## Implementation details
-
-Source code and implementation notes have not been supplied. No implementation or deployment claims are made.
+A more accurate static evaluator does not necessarily produce stronger search. Janus investigates how learned evaluation interacts with tree size, position type, and fixed compute budgets.
 
 ## Architecture
 
-<Diagram steps={["Input", "Core system", "Output"]} />
+The repository includes a Python baseline and later native C++ research engines. Native NNUE components support accumulator refresh, quantized evaluation, and optional AVX2 paths. The latest inspected native engine exposes neural evaluation as an option while retaining a classical default.
 
-This diagram is a conceptual reading aid, not an architecture recovered from source code.
+<Diagram steps="Position|Search and evaluation|Controlled comparison" />
 
-## Testing methodology
+## Implementation
 
-The verified case study should include correctness checks, failure cases, reproducible workloads, and the conditions of any performance measurements.
+The native v0.64 source implements phase-dependent blending between classical and neural scores. Its default disables neural evaluation. The v0.65 report documents factorial comparisons, endgame evaluation, numerical parity checks, and a distinction between frozen classical and neural research baselines.
+
+The inspected adaptive blend scales its base neural weight by material phase: $\alpha(\Phi)=0.5\Phi/24$. This is an implemented weighting rule, not evidence of a strength gain.
+
+## Engineering decisions
+
+Keeping the classical control available makes neural changes falsifiable. Fixed-depth runtime, fixed-time behavior, static error, and tournament outcomes answer different questions and should not be collapsed into one strength claim.
 
 ## Results
 
-No verified benchmarks or implementation outcomes are available for this note.
+VERIFIED by source inspection: optional neural evaluation, accumulator-based native evaluation, and phase-tapered blending exist. DOCUMENTED only: tournament estimates, latency numbers, and manuscript-readiness conclusions in repository reports. No official Elo rating or accepted publication is claimed.
 
 ## Limitations
 
-The current description is limited to the topic supplied in the brief. It should not be treated as a publication, a reproducibility report, or evidence of production deployment.
+The report's exploratory comparison against the classical baseline includes uncertainty spanning no improvement. An older README describes only the initial baseline and is not a complete account of the pinned tree. Reproduction must identify a specific native version, model, corpus, and budget.
 
-## Future work
+## Reproducibility
 
-Confirm the repository and implementation scope, document the architecture, and add reproducible tests before expanding this case study.
+Reviewed at commit [`12fd92f43618`](https://github.com/Zylus08/Project-Janus/tree/12fd92f436186348697a009bc597fe7110a5086d) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [analysis/v0.64/native/nnue_v3.cpp](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/nnue_v3.cpp)
+- [analysis/v0.64/native/janus_native.cpp](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/janus_native.cpp)
+- [docs/v0.65_report.md](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/docs/v0.65_report.md)
+
+See [search and learned-evaluation research](/research/chess-evaluation) for the experimental question.
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

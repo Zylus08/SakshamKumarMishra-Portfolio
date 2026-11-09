@@ -1,0 +1,51 @@
+---
+title: "RoadVision"
+summary: "Road-scene segmentation and corruption evaluation, with particular attention to label provenance and metric interpretation."
+category: "Machine Learning & AI"
+status: "Independent exploration"
+featured: true
+tier: "Case study"
+tags: ["Semantic segmentation", "Robustness", "Evaluation"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/RoadVision"
+evidence: {"repository": "Zylus08/RoadVision", "commit": "8353d5166ddb5ff2204dcd644a8bc999cdedbe90", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A segmentation score is only meaningful when the labels, class mapping, and evaluated sample are trustworthy. RoadVision combines pretrained-model inference with tools for investigating those assumptions.
+
+## Architecture
+
+Inference, video processing, corruptions, visualization, and confusion-matrix metrics are separate modules. A Streamlit interface brings image, video, and evaluation workflows together.
+
+<Diagram steps="Scene and labels|Segmentation|Confusion matrix" />
+
+## Implementation
+
+The evaluator filters ignored ground-truth pixels, accumulates class-pair counts, and computes IoU from true-positive, false-positive, and false-negative totals. Its default averages over classes present in predictions or ground truth.
+
+## Engineering decisions
+
+Repository reports distinguish a corrupted label artifact from replacement validation pairs. They also separate CPU inference time from frame-skipped video throughput. These distinctions matter more than a single headline score.
+
+## Results
+
+VERIFIED: the confusion-matrix implementation and explicit ignored-label handling exist. DOCUMENTED: a five-scene audit and corruption results are stored in the repository. They have not been reproduced here and must not be described as full-dataset or real-world driving validation.
+
+## Limitations
+
+The model is pretrained, not a newly established architecture. Five selected scenes do not support broad safety or robustness claims. Invalid predictions are clipped into class range by the evaluator, so upstream validation also matters. No autonomous-driving deployment is asserted.
+
+## Reproducibility
+
+Reviewed at commit [`8353d5166ddb`](https://github.com/Zylus08/RoadVision/tree/8353d5166ddb5ff2204dcd644a8bc999cdedbe90) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [src/metrics.py](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/src/metrics.py)
+- [src/inference.py](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/src/inference.py)
+- [docs/audit_report.md](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/docs/audit_report.md)
+- [tests/test_metrics.py](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/tests/test_metrics.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

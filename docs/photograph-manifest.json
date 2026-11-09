@@ -1,0 +1,47 @@
+[
+  {
+    "source": "headshot.jpeg",
+    "output": "/images/formal-headshot.webp",
+    "width": 978,
+    "height": 1280,
+    "sourceBytes": 74533,
+    "bytes": 52876,
+    "sha256": "922e6d2952010107ab1b37e92f7f2f14e5390c0fb9fe4240897c02c93900c281"
+  },
+  {
+    "source": "sunlit outdoor.jpeg",
+    "output": "/images/outdoor-black-sweater.webp",
+    "width": 832,
+    "height": 1280,
+    "sourceBytes": 87640,
+    "bytes": 71920,
+    "sha256": "b81cc5c7cf24aed31c3ef95428662239605ab9410383756eece7ec8ed543534a"
+  },
+  {
+    "source": "orange_navyblue jacket.jpeg",
+    "output": "/images/poetry-portrait.webp",
+    "width": 798,
+    "height": 1280,
+    "sourceBytes": 107373,
+    "bytes": 94242,
+    "sha256": "ef58c93e6eb45e768ecf3f2d251f03270d937bb63522a95a1903b68a6c9c2fc6"
+  },
+  {
+    "source": "arms rested.jpeg",
+    "output": "/images/reflections-portrait.webp",
+    "width": 1280,
+    "height": 1125,
+    "sourceBytes": 101589,
+    "bytes": 77958,
+    "sha256": "a063990a35b8aa5725eed7bdecfaef87f2f425cf35f33cc7c5ee3009def2ca4b"
+  },
+  {
+    "source": "green t shirt.jpeg",
+    "output": "/images/engineering-portrait.webp",
+    "width": 1080,
+    "height": 1151,
+    "sourceBytes": 87885,
+    "bytes": 61692,
+    "sha256": "017b317e08706f12810877f7127ae5fb1a4f21d1c2f17f68000e0cac729ea6cc"
+  }
+]

@@ -1,0 +1,35 @@
+---
+title: "E-summit 26 App"
+summary: "A mobile event application with ticket retrieval, QR payloads, and accessibility-related screens."
+category: "Applications & Engineering"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Flutter", "Firebase", "Event applications"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/E-summit-26-app"
+evidence: {"repository": "Zylus08/E-summit-26-app", "commit": "ce3abd9cca8bb20b55031f5cdb4f4b85d571012e", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+An event app brings schedules, ticket access, and participant-facing information into one mobile interface.
+
+## Implementation
+
+TicketService queries Firestore, streams tickets by authenticated user, parses a structured QR payload, compares ownership, and marks a ticket as used.
+
+## Results
+
+VERIFIED: ticket and QR handling exist, with commits attributed to Zylus08 for ticketing and accessibility work. Attendance, production adoption, and security of deployed rules are unverified.
+
+## Limitations
+
+The inspected check-then-update ticket redemption is not a transaction, so concurrent scans need review. Client logic does not substitute for server-side authorization and Firestore rules.
+
+## Reproducibility
+
+Reviewed at commit [`ce3abd9cca8b`](https://github.com/Zylus08/E-summit-26-app/tree/ce3abd9cca8bb20b55031f5cdb4f4b85d571012e) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [lib/core/services/ticket_service.dart](https://github.com/Zylus08/E-summit-26-app/blob/ce3abd9cca8bb20b55031f5cdb4f4b85d571012e/lib/core/services/ticket_service.dart)
+- [lib/core/services/accessibility_service.dart](https://github.com/Zylus08/E-summit-26-app/blob/ce3abd9cca8bb20b55031f5cdb4f4b85d571012e/lib/core/services/accessibility_service.dart)

@@ -24,10 +24,11 @@ export function Photograph({
           height={available.height}
           sizes={
             compact
-              ? "(max-width: 700px) 88vw, 180px"
+              ? "(max-width: 1100px) 105px, 155px"
               : "(max-width: 700px) 88vw, 42vw"
           }
           style={{ objectPosition: available.objectPosition }}
+          preload={compact}
         />
       ) : (
         <div className="photo-fallback">

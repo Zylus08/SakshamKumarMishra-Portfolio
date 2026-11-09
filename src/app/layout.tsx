@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import "@fontsource/instrument-serif/400.css";
-import "@fontsource/instrument-serif/400-italic.css";
-import "@fontsource/space-grotesk/400.css";
-import "@fontsource/space-grotesk/500.css";
-import "@fontsource/jetbrains-mono/400.css";
+import localFont from "next/font/local";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import { Header } from "@/components/header";
@@ -13,6 +9,50 @@ import { allEntries } from "@/lib/content";
 import { origin, profile } from "@/lib/profile";
 import { availableDocuments } from "@/lib/asset-files";
 import { BrandMark } from "@/components/brand-mark";
+// Keep the existing typefaces; preload local files and align fallback metrics
+// so late font loading does not reflow the compact hero around its portrait.
+const sans = localFont({
+  src: [
+    {
+      path: "../../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2",
+      weight: "500",
+      style: "normal",
+    },
+  ],
+  variable: "--font-sans",
+  display: "swap",
+  adjustFontFallback: "Arial",
+});
+const serif = localFont({
+  src: [
+    {
+      path: "../../node_modules/@fontsource/instrument-serif/files/instrument-serif-latin-400-normal.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../node_modules/@fontsource/instrument-serif/files/instrument-serif-latin-400-italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+  ],
+  variable: "--font-serif",
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
+});
+const mono = localFont({
+  src: "../../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2",
+  weight: "400",
+  style: "normal",
+  variable: "--font-mono",
+  display: "swap",
+  fallback: ["monospace"],
+});
 export const metadata: Metadata = {
   metadataBase: new URL(origin),
   icons: {
@@ -50,7 +90,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body className={`${sans.variable} ${serif.variable} ${mono.variable}`}>
         <a href="#main" className="skip-link">
           Skip to content
         </a>

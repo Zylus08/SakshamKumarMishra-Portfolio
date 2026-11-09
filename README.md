@@ -28,7 +28,7 @@ On machines with a full system drive, install with `npm ci --cache .npm-cache` a
 
 ## Implemented
 
-- Five primary pages and six MDX research/project detail pages.
+- Five primary pages and 29 MDX research/project detail pages (24 projects and five research records).
 - Six-act homepage with original SVG signal study, GSAP scroll reveals, authentic-photo slots with editorial fallbacks, and project layouts.
 - Dark-first persistent theme, responsive navigation, keyboard command palette, category/search/status filters, and project list/grid view.
 - Validated MDX, mathematics, code blocks, technical notes, diagrams, benchmark tables, reading time, and section navigation.
@@ -40,7 +40,7 @@ On machines with a full system drive, install with `npm ci --cache .npm-cache` a
 
 ## Content integrity
 
-The brief provides identity and candidate project topics, not source repositories or evidence. All six case studies explicitly show **Verification pending**. No results, publication status, dates, affiliations, or benchmarks have been invented. Professional URLs belong in `profile.socials` in `src/lib/profile.ts`; PDF/photo metadata belongs in `src/lib/assets.ts`. Unconfigured profiles are hidden and asset slots have honest empty states. The writing archive is deliberately empty.
+Milestone 3 integrates 24 public-source project entries and three substantive research notes with commit-pinned evidence and explicit evaluation limits. H-STAR and MobileLoRA remain unfeatured **Verification pending** records. Source inspection is distinguished from repository-reported results and independently run tests; private implementation and research are not published. No publication acceptance, affiliation, trading profit, or performance benchmark is invented. Professional URLs belong in `profile.socials` in `src/lib/profile.ts`; PDF/photo metadata belongs in `src/lib/assets.ts`. Unconfigured profiles are hidden and asset slots have honest empty states. The writing archive is deliberately empty.
 
 ## Documentation
 
@@ -55,6 +55,11 @@ The brief provides identity and candidate project topics, not source repositorie
 - [Contact integration and security](docs/CONTACT-INTEGRATION.md)
 - [Milestone 2 report](docs/MILESTONE-2-REPORT.md)
 - [Milestone 2.1 profile/inbox integration](docs/MILESTONE-2-1-REPORT.md)
+- [Milestone 2.2 authentic photography and résumé assets](docs/MILESTONE-2.2-REPORT.md)
+- [Milestone 3 content, verification, and blockers](docs/M3-CONTENT-REPORT.md)
+- [GitHub inventory and dispositions](docs/M3-GITHUB-INVENTORY.md)
+- [Technical audit](docs/M3-TECHNICAL-AUDIT.md)
+- [Claim provenance](docs/M3-CLAIM-PROVENANCE.md)
 
 The production build uses Webpack because the initial Turbopack run stalled on this Windows host. For the installed Chrome browser, set `PLAYWRIGHT_CHANNEL=chrome`; otherwise install the Playwright Chromium build as shown above.
 

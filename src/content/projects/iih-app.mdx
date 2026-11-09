@@ -1,0 +1,35 @@
+---
+title: "IIH App"
+summary: "A mobile event-support application with mentor-request and participant-facing workflows."
+category: "Applications & Engineering"
+status: "Independent exploration"
+featured: false
+tier: "Archive"
+tags: ["Flutter", "Mentor requests", "Firebase"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/IIH-app"
+evidence: {"repository": "Zylus08/IIH-app", "commit": "01da42a21c6ede33bbe1d30f886c1b8152804037", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Participants need a way to request mentor support and access event information.
+
+## Implementation
+
+The inspected mentor service persists a request to Firestore and attempts an administrator notification through OneSignal.
+
+## Results
+
+VERIFIED: the request and notification code paths exist. The checked-in service uses placeholder notification configuration, so working delivery is not established.
+
+## Limitations
+
+Privileged notification credentials should not be embedded in a client application. No live backend, delivery, or production use was tested.
+
+## Reproducibility
+
+Reviewed at commit [`01da42a21c6e`](https://github.com/Zylus08/IIH-app/tree/01da42a21c6ede33bbe1d30f886c1b8152804037) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [lib/features/call_mentor/services/mentor_request_service.dart](https://github.com/Zylus08/IIH-app/blob/01da42a21c6ede33bbe1d30f886c1b8152804037/lib/features/call_mentor/services/mentor_request_service.dart)
+- [README.md](https://github.com/Zylus08/IIH-app/blob/01da42a21c6ede33bbe1d30f886c1b8152804037/README.md)

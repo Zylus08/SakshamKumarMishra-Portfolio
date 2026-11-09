@@ -1,0 +1,37 @@
+---
+title: "Search and Learned Chess Evaluation"
+summary: "An experimental study of classical evaluation, neural accumulators, and phase-dependent blending."
+category: "Software & Learning Systems"
+status: "Independent exploration"
+featured: true
+tags: ["Research notes", "Reproducibility"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Project-Janus"
+evidence: {"repository": "Zylus08/Project-Janus", "commit": "12fd92f436186348697a009bc597fe7110a5086d", "reviewed": "2026-11-09"}
+---
+
+## Research question
+
+When does blending a learned evaluator with a classical chess evaluator help under a fixed search budget?
+
+## Methodology
+
+Project Janus contains a native search implementation and an optional NNUE evaluator with accumulator code. The inspected phase blend scales neural influence with material phase; classical evaluation remains the documented default.
+
+## Results
+
+The v0.65 repository report records exploratory comparisons. Its intervals and testing conditions do not establish an official rating or a reliably positive strength gain. The portfolio audit inspected source and the report but did not repeat tournaments.
+
+## Limitations
+
+Opening selection, time controls, opponents, seeds, confidence intervals, and independent held-out matches are needed before promoting strength claims. A manuscript described as ready is not a publication.
+
+## Reproducibility
+
+Reviewed on 2026-11-09 at commit `12fd92f436186348697a009bc597fe7110a5086d`. Evidence is source inspection and repository-authored reporting, not an independent experimental replication.
+
+- [analysis/v0.64/native/nnue_v3.cpp](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/nnue_v3.cpp)
+- [analysis/v0.64/native/janus_native.cpp](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/janus_native.cpp)
+- [docs/v0.65_report.md](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/docs/v0.65_report.md)
+
+The [Project Janus case study](/projects/project-janus) covers implementation trade-offs.

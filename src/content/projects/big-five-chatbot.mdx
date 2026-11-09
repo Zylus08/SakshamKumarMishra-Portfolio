@@ -1,0 +1,47 @@
+---
+title: "Big Five Conversational Assessment"
+summary: "An adaptive interview prototype comparing conversational trait signals with an IPIP-style survey, without claiming clinical validity."
+category: "Machine Learning & AI"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Conversational AI", "Structured output", "Assessment research"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/big5-chatbot"
+evidence: {"repository": "Zylus08/big5-chatbot", "commit": "b09a90640dcf81e96c7004b465bcc0594efd5e35", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+A conversation can gather richer context than a static questionnaire, but extracting trait signals requires explicit state and careful interpretation.
+
+## Architecture
+
+A FastAPI application connects survey routes, an interview session, structured LLM output, an embedding-based comparator, and SQLite persistence. Conversation history and facet coverage are maintained outside the model chain.
+
+<Diagram steps="Interview state|Structured response|Exploratory scoring" />
+
+## Implementation
+
+The public agent uses a prompt, Groq-backed model, and Pydantic output parser. It tracks facet coverage and limits repeated probing. The axis scorer subtracts low-pole from high-pole exemplar embeddings, projects responses onto that direction, and maps the result to a bounded scale.
+
+## Results
+
+VERIFIED by source inspection: external session state, structured parsing, contrastive exemplar scoring, and transcript persistence exist. A separately audited private revision is not published here and is not represented as a second project.
+
+## Limitations
+
+Exemplar calibration is not population validation. No clinical diagnosis, reliability estimate, or validated psychological inference is established. The public version's client-supplied session identifiers and persistent transcripts require privacy and authorization review before use. Stored participant data was not read or copied.
+
+## Reproducibility
+
+Reviewed at commit [`b09a90640dcf`](https://github.com/Zylus08/big5-chatbot/tree/b09a90640dcf81e96c7004b465bcc0594efd5e35) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [src/agent/interview_agent.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/agent/interview_agent.py)
+- [src/embeddings/axis_scorer.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/embeddings/axis_scorer.py)
+- [src/db/database.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/db/database.py)
+- [app.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/app.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

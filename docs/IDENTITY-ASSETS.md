@@ -8,7 +8,9 @@ Edit `profile.socials` in `src/lib/profile.ts`. The typed keys are `github`, `li
 
 ## Photographs
 
-Place authentic images in `public/images/`. Configure `photographs.portrait` and `photographs.lifestyle` in `src/lib/assets.ts`; leave either `null` to retain the designed text fallback.
+Optimized authentic images live in `public/images/`. Configure `photographs` in `src/lib/assets.ts`: `portrait` for the compact homepage, `about` for the outdoor portrait, and `poetry`, `reflections`, and `engineering` for writing covers. Research Notes reuses `about` because only one outdoor black-sweater source was supplied. `lifestyle` remains `null`, retaining its designed text fallback. `writingCovers` maps the four categories to these shared records without duplicating image configuration.
+
+Original JPEGs are preserved unchanged in ignored `assets/source-photos/`, outside the public directory. Keep a separate backup of these local originals. Run `node scripts/optimize-photographs.mjs` to regenerate the five WebP files at quality 85. The script auto-orients and strips metadata, without resizing, upscaling, retouching, or color grading; `docs/photograph-manifest.json` records source identities, SHA-256 hashes, dimensions, and byte sizes. No duplicate AVIF variants are needed for these small sources; Next Image supplies responsive renditions. The unused suit mirror selfie and indoor T-shirt photo are retained locally, not published.
 
 Each configured object contains:
 
@@ -24,7 +26,7 @@ Each configured object contains:
 
 The sample is configuration syntax, not a supplied asset. Use real source dimensions. Recommended portrait: 1200x1500 (4:5); lifestyle: 1400x1400 or a larger source cropped to the square display. Use JPEG, WebP, or PNG; remove unnecessary EXIF/location data before publication and aim for a well-compressed source under 500 KB. Paths must be local, under `/images/`, and use letters, digits, slashes, hyphens, or underscores. Object position uses two percentages.
 
-`Photograph` validates local existence and image signature, then uses Next Image with explicit dimensions, responsive `sizes`, a reserved aspect ratio, lazy loading, and configurable crop position. The homepage compact portrait, About portrait, and Beyond the Terminal image share this component. Missing or invalid assets render text, never an invented portrait. `npm run validate:content` fails for configured but invalid assets so publishing mistakes are visible. File signature checks do not replace reviewing the image itself.
+`Photograph` validates local existence and image signature, then uses Next Image with explicit source dimensions, responsive `sizes`, a reserved frame, and configurable crop position. Only the compact homepage portrait is preloaded; other images are lazy-loaded. The homepage compact portrait, About portrait, and Beyond the Terminal fallback share this component. `CategoryCover` uses the same validation and responsive Next Image treatment in reserved 4:5 desktop / square mobile frames. Covers select the existing Explorer filters and remain present for empty categories. Object-fit cropping never stretches the source. Missing or invalid assets render fallbacks, never invented portraits. `npm run validate:content` fails for configured but invalid assets so publishing mistakes are visible. File signature checks do not replace reviewing the image itself.
 
 Scroll reveals reuse the existing homepage system; reduced motion remains supported. Frames reserve space before images load to avoid layout jumps.
 

@@ -1,0 +1,49 @@
+---
+title: "Aerospace Remaining Useful Life"
+summary: "A C-MAPSS sequence-model comparison whose current entrypoint and evaluation protocol expose reproducibility gaps."
+category: "Machine Learning & AI"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Time series", "Predictive maintenance", "PyTorch"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL"
+evidence: {"repository": "Zylus08/Rolls-Royce-Aerospace-RUL", "commit": "934d8de704e1fb93e9362741b2d70e141770e68f", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Remaining useful life prediction estimates degradation from multivariate sensor sequences. The repository explores recurrent, attention-based, convolutional, and temporal-convolution models.
+
+## Architecture
+
+Separate modules load data, normalize features, build engine-wise windows, train models, and evaluate predictions. Model checkpoints and result files are present even though a top-level README is absent.
+
+<Diagram steps="Engine records|Sequence models|RUL evaluation" />
+
+## Implementation
+
+The inspected loader uses FD001 files and constructs test RUL using the official remaining-life offsets. Scaling is fitted on training records. Targets are capped at 125 cycles, and 30-cycle windows predict the following row. Evaluation is over overlapping windows, not simply the last window of each engine.
+
+## Results
+
+VERIFIED: sequence preparation, MSE/Adam training, and regression/thresholded classification metrics exist. The current main script imports load_FD001 while the loader defines load_dataset; it also requests lowercase metric keys while the evaluator returns uppercase keys. The current entrypoint is therefore not a reproduced experiment.
+
+## Limitations
+
+The dataset argument is ignored by the inspected loader, so an FD004-named result does not establish FD004 reproduction. There is no NASA score in the inspected evaluator. Published model metrics are withheld pending a corrected, seeded, engine-aware protocol. The repository name does not imply Rolls-Royce collaboration or endorsement.
+
+## Reproducibility
+
+Reviewed at commit [`934d8de704e1`](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/tree/934d8de704e1fb93e9362741b2d70e141770e68f) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [main.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/main.py)
+- [src/data_loader.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/data_loader.py)
+- [src/preprocessing.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/preprocessing.py)
+- [src/sequence_generator.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/sequence_generator.py)
+- [src/train.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/train.py)
+- [src/evaluate.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/evaluate.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

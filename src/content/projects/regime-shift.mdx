@@ -1,0 +1,46 @@
+---
+title: "Regime-Shift"
+summary: "Regime-conditioned portfolio research with a clear distinction between training-window isolation and causal test-time inference."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Hidden Markov models", "Asset allocation", "Walk-forward analysis"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/Regime-Shift"
+evidence: {"repository": "Zylus08/Regime-Shift", "commit": "f1f4ea017b78db07e7faed924d34711e5c34a81a", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Market regimes can alter the relationship between risk and allocation. This project combines Gaussian HMM inference with regime statistics and portfolio weights.
+
+## Architecture
+
+Feature preparation, HMM fitting, regime estimation, allocation, rebalancing, and reporting are separate modules. A rolling or expanding walk-forward validator refits the scaler and HMM for each training fold.
+
+<Diagram steps="Training window|Regime inference|Portfolio simulation" />
+
+## Implementation
+
+Training-only scaler fitting is implemented. However, the entire test window is passed to Viterbi decoding and forward-backward posterior inference. The portfolio simulator then applies date-specific weights to that same date's returns.
+
+## Results
+
+VERIFIED by source inspection: fold-specific fitting and overlap removal exist. The inspected inference/accounting path does not justify the report's leakage-free out-of-sample claim. Published return tables are not repeated here as validated outcomes.
+
+## Limitations
+
+Future observations within a test sequence can affect smoothed state estimates. Same-day signal/return timing also needs correction or explicit justification. Failed folds are skipped after logging, so the successful-fold denominator matters. Fixed-universe and capacity assumptions remain research limitations.
+
+## Reproducibility
+
+Reviewed at commit [`f1f4ea017b78`](https://github.com/Zylus08/Regime-Shift/tree/f1f4ea017b78db07e7faed924d34711e5c34a81a) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [validation/walk_forward.py](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/validation/walk_forward.py)
+- [models/hmm_model.py](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/models/hmm_model.py)
+- [reports/research_report.md](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/reports/research_report.md)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

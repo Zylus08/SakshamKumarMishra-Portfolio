@@ -4,6 +4,17 @@ import matter from "gray-matter";
 import { z } from "zod";
 export const kinds = ["research", "projects", "writing"] as const;
 export type Kind = (typeof kinds)[number];
+const externalUrl = z
+  .string()
+  .url()
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  }, "External content links must use HTTPS without credentials");
 export const schema = z.object({
   title: z.string().min(1),
   summary: z.string().min(1),
@@ -20,14 +31,22 @@ export const schema = z.object({
     "Draft",
   ]),
   featured: z.boolean().default(false),
+  tier: z.enum(["Flagship", "Case study", "Archive", "Experiment"]).optional(),
+  evidence: z
+    .object({
+      repository: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+      commit: z.string().regex(/^[a-f0-9]{40}$/),
+      reviewed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    })
+    .optional(),
   tags: z.array(z.string()).default([]),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
-  paper: z.string().url().optional(),
-  code: z.string().url().optional(),
-  dataset: z.string().url().optional(),
+  paper: externalUrl.optional(),
+  code: externalUrl.optional(),
+  dataset: externalUrl.optional(),
   citation: z.string().optional(),
   cover: z.string().optional(),
   coverAlt: z.string().optional(),

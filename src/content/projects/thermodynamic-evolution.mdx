@@ -1,0 +1,60 @@
+---
+title: "Thermodynamic Evolution"
+summary: "A collaborative software-analysis and remediation research system with bounded semantic summaries and explicit execution gates."
+category: "Applications & Engineering"
+status: "Independent exploration"
+featured: true
+tier: "Flagship"
+tags: ["Program analysis", "Autonomous agents", "Research systems"]
+date: "2026-11-09"
+code: "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503"
+evidence: {"repository": "CV-Code-Vitals/Thermodynamic-Evolution-UCS503", "commit": "d5ae3189dcbcc34b1261f9a5d16145006c6144bb", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Automated software improvement needs more than a plausible patch. Diagnostics, candidate generation, validation, and rollback must retain evidence and represent uncertainty.
+
+## Architecture
+
+The Go backend separates repository intelligence, diagnostics, remediation planning, and execution. Semantic analysis adds call resolution, dataflow, resource-lifecycle reasoning, and cached function summaries. Rust AST components and an administrative frontend support the broader system.
+
+<Diagram steps="Analyze|Plan|Isolate and validate" />
+
+## Implementation
+
+Function summaries encode parameter-to-return taint relationships, resource acquisition/release effects, and error behavior. Summary entries record source hashes and completeness. The executor checks task eligibility and approval before creating a workspace and choosing a registered strategy. The Rust engine computes a weighted structural score from cyclomatic complexity, maximum nesting, log AST size, and concurrency primitives. The Go annealer requires configured candidate and energy evaluators before starting.
+
+## Engineering decisions
+
+The LLM mutation agent proposes replacement function bodies; its instructions are not a proof of correctness. The Docker evaluator specifies network isolation, a read-only root, a non-root user, dropped capabilities, resource limits, and bounded output. These are inspected implementation controls, not a claim that every deployment enforces them.
+
+## Contribution
+
+This is collaborative work. Merged pull requests #26 and #27 are authored by Zylus08; inspected commits attribute semantic-analysis and verification changes to Saksham Mishra. That evidence supports those contributions, not sole ownership of every subsystem.
+
+## Results
+
+VERIFIED by source inspection: semantic summaries, eligibility checks, isolated execution orchestration, and Docker containment arguments are implemented. DOCUMENTED: the latest Phase 1.1 report describes counterfactual and adversarial verification, bounded recursion, and reused evaluation corpora. Those experiments were not rerun here.
+
+## Limitations
+
+The latest inspected report explicitly limits the milestone to verification and does not authorize general autonomous remediation. Polymorphic dispatch, ownership escape, multi-hop aliases, and corpus reuse constrain generalization. Small fixture suites do not establish universal diagnostic accuracy or optimization superiority.
+
+## Reproducibility
+
+Reviewed at commit [`d5ae3189dcbc`](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/tree/d5ae3189dcbcc34b1261f9a5d16145006c6144bb) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [go-backend/agent/repo_intel/diagnostic/semantic/function_summary.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/diagnostic/semantic/function_summary.go)
+- [go-backend/agent/repo_intel/execution/executor.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/execution/executor.go)
+- [go-backend/agent/evaluator.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/evaluator.go)
+- [go-backend/agent/mutation.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/mutation.go)
+- [reports/milestone3_5_phase1_1_independent_verification.md](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/reports/milestone3_5_phase1_1_independent_verification.md)
+- [thermodynamic-ast-engine/src/main.rs](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/thermodynamic-ast-engine/src/main.rs)
+- [go-backend/agent/annealer.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/annealer.go)
+
+The [semantic-analysis research note](/research/software-analysis) focuses on the scientific question and evaluation limits.
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

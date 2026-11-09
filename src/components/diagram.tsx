@@ -2,17 +2,19 @@ export function Diagram({
   steps = ["Input", "Representation", "Evaluation"],
   caption = "Conceptual workflow — not a verified implementation",
 }: {
-  steps?: string[];
+  steps?: string[] | string;
   caption?: string;
 }) {
+  // Literal attributes survive MDX's JavaScript blocking; labels remain React text.
+  const labels = typeof steps === "string" ? steps.split("|") : steps;
   return (
     <figure className="diagram">
       <div>
-        {steps.map((step, i) => (
+        {labels.map((step, i) => (
           <span key={step}>
             <small>0{i + 1}</small>
             {step}
-            {i < steps.length - 1 && <b aria-hidden="true">→</b>}
+            {i < labels.length - 1 && <b aria-hidden="true">→</b>}
           </span>
         ))}
       </div>

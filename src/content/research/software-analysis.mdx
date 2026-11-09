@@ -1,0 +1,38 @@
+---
+title: "Evidence-Bounded Software Analysis"
+summary: "How semantic summaries and isolated evaluation can support inspectable code-change proposals."
+category: "Software & Learning Systems"
+status: "Independent exploration"
+featured: true
+tags: ["Research notes", "Reproducibility"]
+date: "2026-11-09"
+code: "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503"
+evidence: {"repository": "CV-Code-Vitals/Thermodynamic-Evolution-UCS503", "commit": "d5ae3189dcbcc34b1261f9a5d16145006c6144bb", "reviewed": "2026-11-09"}
+---
+
+## Research question
+
+How far can static semantic evidence support change proposals while keeping uncertainty and execution boundaries explicit?
+
+## Methodology
+
+The collaborative Thermodynamic Evolution system combines a Rust Tree-sitter structural analyzer with Go semantic summaries, proposal orchestration, and sandbox-mediated evaluation. Structural energy is a code metric; it is not physical energy or a demonstrated runtime speedup.
+
+## Results
+
+Source inspection confirms summary-cache and execution-gate implementations. The latest verification report concerns a bounded fixture corpus and explicitly defers autonomous remediation. Its reported fixture results were not rerun here.
+
+## Limitations
+
+Fixture success does not prove soundness on arbitrary programs. Unresolved ownership and interface dispatch remain conservative cases. No accepted paper or general security guarantee is claimed.
+
+## Reproducibility
+
+Reviewed on 2026-11-09 at commit `d5ae3189dcbcc34b1261f9a5d16145006c6144bb`. Evidence is source inspection and repository-authored reporting, not an independent experimental replication.
+
+- [thermodynamic-ast-engine/src/main.rs](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/thermodynamic-ast-engine/src/main.rs)
+- [go-backend/agent/repo_intel/diagnostic/semantic/function_summary.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/diagnostic/semantic/function_summary.go)
+- [go-backend/agent/repo_intel/execution/executor.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/execution/executor.go)
+- [reports/milestone3_5_phase1_1_independent_verification.md](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/reports/milestone3_5_phase1_1_independent_verification.md)
+
+The [Thermodynamic Evolution case study](/projects/thermodynamic-evolution) covers architecture and contribution attribution.

@@ -1,0 +1,35 @@
+---
+title: "GPT-2 Architecture Exploration"
+summary: "An educational transformer and local-assistant implementation centered on inspectable causal attention."
+category: "Experimental & Emerging Work"
+status: "Independent exploration"
+featured: false
+tier: "Experiment"
+tags: ["Transformers", "PyTorch", "Causal attention"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/gpt2"
+evidence: {"repository": "Zylus08/gpt2", "commit": "c07656c4cb6725ecd4d99b00b5e061c962ab4170", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Implementing the attention mechanism directly makes its masking and tensor transformations easier to study.
+
+## Implementation
+
+CausalSelfAttention projects queries, keys, and values, reshapes them into heads, applies a lower-triangular mask, uses scaled dot-product attention and dropout, then projects the merged heads.
+
+## Results
+
+VERIFIED: the attention mechanism exists in source. The repository also contains assistant/provider abstractions, but no pretrained-GPT-2 equivalence or independently trained language-model quality is claimed.
+
+## Limitations
+
+Architectural similarity does not establish weight compatibility, benchmark parity, or a new model contribution.
+
+## Reproducibility
+
+Reviewed at commit [`c07656c4cb67`](https://github.com/Zylus08/gpt2/tree/c07656c4cb6725ecd4d99b00b5e061c962ab4170) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [transformer/model/attention.py](https://github.com/Zylus08/gpt2/blob/c07656c4cb6725ecd4d99b00b5e061c962ab4170/transformer/model/attention.py)
+- [core/agent.py](https://github.com/Zylus08/gpt2/blob/c07656c4cb6725ecd4d99b00b5e061c962ab4170/core/agent.py)

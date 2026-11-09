@@ -13,7 +13,8 @@ import {
   availablePhotograph,
   validateAssetConfiguration,
 } from "../../src/lib/asset-files";
-import { documents } from "../../src/lib/assets";
+import { documents, photographs, writingCovers } from "../../src/lib/assets";
+import { CategoryCover } from "../../src/components/category-cover";
 test("all five configured profiles render exact safe URLs and accessible names", () => {
   const values = {
     github: "https://github.com/example-fixture",
@@ -169,6 +170,35 @@ test("three vector concepts and selected favicon dimensions are valid", async ()
 test("real repository asset configuration contains no broken links", () => {
   validateAssetConfiguration();
   configuredSocials();
+});
+test("photographic assets preserve real dimensions and category availability", async () => {
+  const manifest = JSON.parse(
+    fs.readFileSync("docs/photograph-manifest.json", "utf8"),
+  );
+  for (const photo of Object.values(photographs)) {
+    if (!photo) continue;
+    const metadata = await sharp(path.join("public", photo.src)).metadata();
+    assert.equal(metadata.width, photo.width);
+    assert.equal(metadata.height, photo.height);
+    assert.equal(metadata.exif, undefined);
+    const record = manifest.find(
+      (item: { output: string }) => item.output === photo.src,
+    );
+    assert.ok(record);
+    assert.ok(record.bytes < record.sourceBytes);
+  }
+  assert.equal(writingCovers.length, 4);
+  assert.deepEqual(
+    availableDocuments().map((doc) => doc.id),
+    ["software", "machine-learning", "quantitative"],
+  );
+  assert.equal(documents.find((doc) => doc.id === "academic")?.file, null);
+});
+test("category cover missing source retains a reserved frame without a broken image", () => {
+  const html = renderToStaticMarkup(<CategoryCover photo={null} />);
+  assert.ok(html.includes("category-cover-photo"));
+  assert.ok(html.includes("category-cover-fallback"));
+  assert.ok(!html.includes("<img"));
 });
 test("configured authentic-photo path uses optimized responsive image markup", async () => {
   const directory = fs.mkdtempSync(

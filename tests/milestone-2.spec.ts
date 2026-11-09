@@ -18,30 +18,32 @@ async function fillForm(
     .getByRole("textbox", { name: "Message (required)", exact: true })
     .fill("This is a mock test message. Do not send an email.");
 }
-test("resume disclosure empty state, escape, outside dismissal and five tabs", async ({
+test("resume disclosure availability, escape, outside dismissal and five tabs", async ({
   page,
 }, info) => {
   await page.goto("/");
   const summary = page.locator(".resume-menu summary");
   await summary.click();
   await expect(page.locator(".resume-popover")).toBeVisible();
-  await expect(page.locator(".resume-popover")).toContainText(
-    "once the documents are added",
+  await expect(page.locator(".resume-popover a")).toHaveCount(6);
+  await expect(page.locator(".resume-popover")).not.toContainText(
+    "Academic / Research CV",
   );
-  await expect(page.locator(".resume-popover a")).toHaveCount(0);
   await summary.press("Escape");
   await expect(page.locator(".resume-popover")).not.toBeVisible();
   await summary.click();
-  await page.locator("h1").click();
+  // The populated mobile popover covers the heading. Its left gutter stays
+  // outside the disclosure at every supported viewport width.
+  await page.mouse.click(5, 110);
   await expect(page.locator(".resume-popover")).not.toBeVisible();
   if (info.project.name === "desktop")
     await expect(
       page.getByRole("navigation", { name: "Primary" }).getByRole("link"),
     ).toHaveCount(5);
   await page.goto("/about");
-  await expect(page.locator("main .document-empty")).toBeVisible();
+  await expect(page.locator("main .document-item")).toHaveCount(3);
 });
-test("photo fallbacks, icon metadata and compact/tablet layouts", async ({
+test("authentic photos, icon metadata and compact/tablet layouts", async ({
   page,
   request,
 }) => {
@@ -55,18 +57,23 @@ test("photo fallbacks, icon metadata and compact/tablet layouts", async ({
         ),
         `${url} at ${width}`,
       ).toBe(true);
-      await expect(page.locator(".personal-photo img")).toHaveCount(0);
-      expect(
-        await page
-          .locator("img")
-          .evaluateAll((images) =>
-            images.every(
-              (image) =>
-                (image as HTMLImageElement).complete &&
-                (image as HTMLImageElement).naturalWidth > 0,
-            ),
-          ),
-      ).toBe(true);
+      await expect(page.locator(".personal-photo img")).toHaveCount(
+        url === "/contact" ? 0 : 1,
+      );
+      await expect
+        .poll(
+          async () =>
+            await page
+              .locator("img")
+              .evaluateAll((images) =>
+                images.every(
+                  (image) =>
+                    (image as HTMLImageElement).complete &&
+                    (image as HTMLImageElement).naturalWidth > 0,
+                ),
+              ),
+        )
+        .toBe(true);
     }
   }
   await expect(page.locator('link[rel=icon][href*="icon.svg"]')).toHaveCount(1);
@@ -97,11 +104,26 @@ test("contact validation and real route mock flow are accessible", async ({
     "mock",
   );
   await expect(page.getByRole("status")).toContainText("No email was sent");
+  // Inspect settled colors, not a frame halfway through the existing hover transition.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => {})),
+    ),
+  );
   const scan = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(scan.violations).toEqual([]);
   await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => {})),
+    ),
+  );
   expect(
     (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze())
       .violations,

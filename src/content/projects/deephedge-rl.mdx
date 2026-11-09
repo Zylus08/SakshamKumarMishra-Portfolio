@@ -1,0 +1,47 @@
+---
+title: "DeepHedge-RL"
+summary: "An options-trading simulation with PPO-family agents and an expanding-window evaluation harness."
+category: "Quantitative Finance"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["Reinforcement learning", "Options", "Expanding windows"]
+date: "2026-11-09"
+code: "https://github.com/Zylus08/DeepHedge-RL"
+evidence: {"repository": "Zylus08/DeepHedge-RL", "commit": "e85e7adcfe413444fdbfe988a6c3c6884493fa0e", "reviewed": "2026-11-09"}
+---
+
+## Problem
+
+Sequential options decisions combine market exposure, trading costs, and drawdown. DeepHedge-RL explores this as an environment-based reinforcement-learning problem.
+
+## Architecture
+
+Training and evaluation scripts instantiate options environments and Stable-Baselines agents. The walk-forward harness supports PPO, A2C, and MaskablePPO with explicit calendar ranges.
+
+<Diagram steps="Training period|Fresh agent|Held-out episodes" />
+
+## Implementation
+
+The inspected harness defines five expanding training windows followed by annual evaluation periods from 2019 through 2023. It records transaction-cost, slippage, capital, lot, strike, and reward configuration alongside results. Option values and Greeks are calculated with Black–Scholes rather than replayed option quotes. Volatility comes from lagged VIX with a multiplier or realized-volatility fallbacks.
+
+## Results
+
+VERIFIED: the expanding-window harness and action-mask evaluation path are implemented. Model training and market-data provenance were not reproduced in this portfolio audit. Stored training artifacts do not establish actual trading returns.
+
+## Limitations
+
+Repeated evaluation episodes are not automatically independent market samples. Option pricing assumptions, feature causality, cost calibration, and episode overlap need to accompany any quantitative conclusion. No live deployment, realized profit, or superiority claim is made. The inspected near-expiry and near-zero-volatility branches return zero put delta even for an in-the-money put. Reset also samples with global NumPy randomness rather than the Gymnasium seeded generator; reproducibility needs explicit verification.
+
+## Reproducibility
+
+Reviewed at commit [`e85e7adcfe41`](https://github.com/Zylus08/DeepHedge-RL/tree/e85e7adcfe413444fdbfe988a6c3c6884493fa0e) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [walk_forward_validation.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/walk_forward_validation.py)
+- [envs/intraday_option_env.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env.py)
+- [envs/intraday_option_env_maskPPO.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env_maskPPO.py)
+- [utils/black_scholes.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/utils/black_scholes.py)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

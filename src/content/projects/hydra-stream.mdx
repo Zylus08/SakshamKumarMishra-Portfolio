@@ -1,52 +1,54 @@
 ---
-title: "Kamish / HydraStream"
-summary: "Streaming broker and distributed systems engineering: exploring the path from producer to consumer."
-category: "Systems Engineering"
-status: Verification pending
+title: "Kamish"
+summary: "A collaborative event-streaming system exploring signed residency policies, broker enforcement, and auditable local operation."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
 featured: true
-tags: ["Streaming", "Distributed systems", "Brokers"]
+tier: "Flagship"
+tags: ["Rust", "Event streaming", "Policy enforcement"]
+date: "2026-11-09"
+code: "https://github.com/abhinav29102005/kamish"
+evidence: {"repository": "abhinav29102005/kamish", "commit": "5682594cb50450c66bad839de1d30ceccc4b4ac4", "reviewed": "2026-11-09"}
 ---
 
-<Note>
-  Candidate case study supplied in the portfolio brief. Project stage, methods,
-  authorship details, and outcomes have not yet been verified. This page
-  introduces the topic; it does not report completed work.
-</Note>
+## Problem
 
-## Problem statement
-
-How should a streaming system balance ordering, durability, and delivery semantics?
-
-## Project overview
-
-Streaming broker and distributed systems engineering: exploring the path from producer to consumer. The scope described here comes from the project brief. A full technical account will be added after supporting material is available.
-
-## Engineering decisions
-
-The final case study should explain the chosen data structures, interfaces, and trade-offs using evidence from the implementation. Those decisions are not yet documented here.
-
-## Implementation details
-
-Source code and implementation notes have not been supplied. No implementation or deployment claims are made.
+A streaming platform needs to decide where data may move as well as how quickly it can move. Kamish encodes placement and transfer policy as explicit broker decisions.
 
 ## Architecture
 
-<Diagram steps={["Input", "Core system", "Output"]} />
+The Rust workspace separates policy, enforcement, append-only storage, ownership, outboxes, routing, and audit records. A gateway, CLI, TypeScript SDK, and frontend expose the system. Earlier research used the name Hydra Stream; this existing route is retained for continuity.
 
-This diagram is a conceptual reading aid, not an architecture recovered from source code.
+<Diagram steps="Signed policy|Broker enforcement|Audit record" />
 
-## Testing methodology
+## Implementation
 
-The verified case study should include correctness checks, failure cases, reproducible workloads, and the conditions of any performance measurements.
+The inspected enforcement function evaluates ingress, replication, export, fetch, and promotion operations against class and destination rules. Denials and accepted operations are recorded through the audit layer.
+
+## Engineering decisions
+
+Policy checks precede transfer decisions rather than being inferred from a dashboard. The reviewed PR also distinguishes the local in-memory authority from an external metadata service and verifies trusted policy issuers before installation.
+
+## Contribution
+
+Saksham's merged PR and commit history document gateway, CLI packaging, policy-trust, static-path containment, and release-evidence work. Kamish remains a collaborative project; the portfolio does not attribute the complete platform to one author.
 
 ## Results
 
-No verified benchmarks or implementation outcomes are available for this note.
+VERIFIED: enforcement decisions exist in source, and Zylus08's PR #1 was merged. DOCUMENTED: the PR handoff records Rust, SDK, frontend, and clean-room checks. These counts describe that repository's run, not a rerun by this portfolio audit.
 
 ## Limitations
 
-The current description is limited to the topic supplied in the brief. It should not be treated as a publication, a reproducibility report, or evidence of production deployment.
+The inspected handoff explicitly does not verify external etcd, KMS, independent witnesses, a production browser deployment, or persistent multi-region rollout. Cryptographic policy checks do not by themselves establish legal compliance, zero data loss, or production readiness.
 
-## Future work
+## Reproducibility
 
-Confirm the repository and implementation scope, document the architecture, and add reproducible tests before expanding this case study.
+Reviewed at commit [`5682594cb504`](https://github.com/abhinav29102005/kamish/tree/5682594cb50450c66bad839de1d30ceccc4b4ac4) on 2026-11-09. Source inspection establishes implementation structure; repository-authored results are not independent measurements. The upstream application and benchmark suite were not rerun during this review.
+
+- [crates/kamish-enforce/src/lib.rs](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/crates/kamish-enforce/src/lib.rs)
+- [audit/pr1_review_fixes_20261107/REPORT.md](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/audit/pr1_review_fixes_20261107/REPORT.md)
+- [docs/CONTRACT.md](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/docs/CONTRACT.md)
+
+## Next investigation
+
+Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.
