@@ -12,11 +12,55 @@ evidence: {"repository": "Zylus08/Project-Janus", "commit": "12fd92f436186348697
 
 ## Research question
 
-When does blending a learned evaluator with a classical chess evaluator help under a fixed search budget?
+When does a learned chess evaluator improve decisions made under a fixed search budget, and how much of an apparent gain depends on the blend policy and evaluation distribution? Project Janus supplies optional native neural evaluation, a classical baseline, and a repository-authored experimental report. This note examines the comparison design and the limits of its conclusions; the companion case study explains the implementation.
 
-## Methodology
+The hypothesis is conditional. A learned score might add information unavailable to the classical evaluator, but its computational cost can reduce search. Training coverage can favor some positions and degrade others. A useful study must therefore distinguish static evaluation quality, inference cost, and playing outcomes rather than treating them as interchangeable measures of intelligence.
 
-Project Janus contains a native search implementation and an optional NNUE evaluator with accumulator code. The inspected phase blend scales neural influence with material phase; classical evaluation remains the documented default.
+## Study objects and baselines
+
+The v0.65 report separates three configurations: C1 retains the classical default, N1 uses a fixed equal blend with the V2 neural evaluator, and N2 is a frozen V3 research configuration with additional features and phase-dependent blending. These labels identify experimental objects in that report. They are not official engine releases with independently verified ratings.
+
+<TableScroll>
+<table><caption>Configurations described in the pinned report</caption><thead><tr><th>Configuration</th><th>Evaluation role</th><th>Interpretive boundary</th></tr></thead><tbody><tr><td>C1</td><td>Classical baseline</td><td>Reference for the cost and value of adding a neural path</td></tr><tr><td>N1</td><td>V2, fixed blend</td><td>A neural comparator, not a substitute for C1</td></tr><tr><td>N2</td><td>V3, phase blend</td><td>Frozen research configuration with exploratory evidence</td></tr></tbody></table>
+</TableScroll>
+
+The inspected source verifies accumulator-based neural evaluation and an optional adaptive blend. Its material-phase coefficient reduces neural influence as phase declines. This establishes a mechanism to study, not the result of studying it. The default disables neural evaluation, so a run manifest must explicitly identify when the neural path is enabled.
+
+## Design and causal interpretation
+
+<Diagram steps="Freeze configurations|Separate model and blend|Evaluate fixed corpus|Compare paired games" caption="Evaluation stages described across the Janus report, summarized without implying an independently rerun experiment." />
+
+The report includes a factorial comparison of model version and blend choice. Holding one factor fixed while changing the other helps distinguish a representation change from a policy change. It also investigates training-data scale separately from an additional feature set. A result from changing both model and dataset at once would not identify which change produced it.
+
+These contrasts remain bounded by the selected positions and search conditions. More training examples can change coverage as well as sample count. A faster path can search differently even when its static scores closely match. The report's factorial structure is a useful experimental control, but it does not establish that every remaining confounder was removed or that its estimates generalize outside the tested conditions.
+
+## Corpus provenance and split integrity
+
+The report documents a compact position comparison, a categorized endgame suite, parity states, and tournament matches. Those collections have different purposes and should retain separate denominators. A parity corpus tests implementation agreement; an endgame collection probes selected positions; an opening suite shapes a distribution of games. Pooling them into a single accuracy claim would erase the question each was designed to answer.
+
+The inspected account does not establish an independent held-out corpus that was never used during development. The next reproduction needs stable corpus identifiers, deduplication rules, and a record of which collections informed configuration selection. Training and test position overlap should be assessed explicitly rather than assumed absent because files have different names.
+
+A material-phase threshold is also not a semantic endgame label. The report's own later analysis finds that the selected low-phase set contains queenless middlegames. Results on that proxy population should be named accordingly. This matters because a claim that a method improves endgames can sound broader and more interpretable than the actual rule used to select positions.
+
+## Reported outcomes and uncertainty
+
+The exploratory comparison of the adaptive neural configuration against classical evaluation is reported as +17.4 Elo, with a confidence interval spanning -17.4 to +50.7 and p = 0.320. Those are repository-reported statistics, not values independently recomputed for this note. The interval includes no improvement, so the comparison does not establish a reliable strength gain over the default.
+
+The report also describes a comparison against the earlier neural configuration with a positive estimate and a p-value of 0.074. That does not become conventional five-percent significance merely because the report describes the direction favorably. More generally, comparing several configurations and subsets creates selection opportunities; the strongest observed contrast requires an independent confirmation rather than an especially prominent headline.
+
+An earlier favorable estimate reportedly reversed under a changed opening distribution. That negative finding directly limits generalization. It suggests that opening selection is part of the estimand: the experiment measures performance under its chosen distribution, not an invariant property of an engine. Two such collections are also too little evidence to characterize all possible opening-dependent variation precisely.
+
+## Reproducibility and numerical checks
+
+The report describes parity and inference timing work. The portfolio review verified the relevant native source paths and read the report, but did not compile those engines, load their weights, or repeat matches. Timing numbers therefore remain documented-only. Hardware, compiler, CPU instruction support, model identity, and the exact evaluation path are necessary before a speed claim can be compared fairly.
+
+Parity testing should precede interpreting a vectorized implementation as a faster version of the same evaluator. It answers whether sampled inputs produce equivalent outputs under the chosen numerical tolerance. It does not establish equivalent search trajectories for every position, nor does it replace match evaluation. Keeping these layers separate avoids explaining a playing result with a microbenchmark that measured a different operation.
+
+## Future experiments and publication status
+
+A proposed confirmation would preregister the engine configurations, opening corpus, color pairing, stopping rule, and time budget; then report every scheduled game and uncertainty for the predefined contrast. Separate experiments could compare equal-time and equal-work budgets to distinguish evaluation quality from cost. These are recommendations derived from the reviewed limitations, not newly completed experiments.
+
+The public report's manuscript-readiness decision is internal evidence of project status. It does not establish acceptance, peer review, or an official rating. The scientific narrative remains an exploratory comparison with inspectable mechanisms, useful negative findings, and uncertainty that prevents a broad superiority claim.
 
 ## Results
 

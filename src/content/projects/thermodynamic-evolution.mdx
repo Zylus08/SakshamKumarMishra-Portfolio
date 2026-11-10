@@ -11,27 +11,86 @@ code: "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503"
 evidence: {"repository": "CV-Code-Vitals/Thermodynamic-Evolution-UCS503", "commit": "d5ae3189dcbcc34b1261f9a5d16145006c6144bb", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-Automated software improvement needs more than a plausible patch. Diagnostics, candidate generation, validation, and rollback must retain evidence and represent uncertainty.
+Thermodynamic Evolution explores evidence-guided software analysis and change proposals. Its inspected implementation combines a Rust structural analyzer, Go repository intelligence and semantic summaries, proposal generation, and execution mediated by eligibility checks and a sandbox evaluator. The architectural question is how to keep a suggested change connected to evidence, an explicit objective, and a controlled validation boundary.
 
-## Architecture
+The project is collaborative. Merged pull requests and sampled history support Saksham's semantic-analysis and verification contributions, not ownership of every subsystem. The latest reviewed report is explicitly a verification milestone. It is not evidence that general autonomous production remediation has been achieved.
 
-The Go backend separates repository intelligence, diagnostics, remediation planning, and execution. Semantic analysis adds call resolution, dataflow, resource-lifecycle reasoning, and cached function summaries. Rust AST components and an administrative frontend support the broader system.
+## Problem and motivation
 
-<Diagram steps="Analyze|Plan|Isolate and validate" />
+Producing a plausible code edit is easier than establishing that the edit is appropriate. A proposal may reduce visible complexity while changing behavior, removing an important check, or moving work into a helper that the scoring function treats differently. Tests can reject some bad changes, but a passing finite suite does not prove semantic equivalence for all inputs.
 
-## Implementation
+The system therefore needs separate answers to several questions: what does the repository contain, what evidence supports a diagnostic, which transformation is proposed, may it execute, and how should its outcome be evaluated? Collapsing these into one language-model response would make it difficult to distinguish observation from suggestion and permission from capability.
 
-Function summaries encode parameter-to-return taint relationships, resource acquisition/release effects, and error behavior. Summary entries record source hashes and completeness. The executor checks task eligibility and approval before creating a workspace and choosing a registered strategy. The Rust engine computes a weighted structural score from cyclomatic complexity, maximum nesting, log AST size, and concurrency primitives. The Go annealer requires configured candidate and energy evaluators before starting.
+## Architecture and control boundaries
 
-## Engineering decisions
+<Diagram steps="Repository analysis|Diagnostic evidence|Remediation plan|Eligibility and approval|Isolate and validate" caption="Simplified implemented control path. Proposed changes must pass execution gates; a diagnostic is not permission to run a mutation." />
 
-The LLM mutation agent proposes replacement function bodies; its instructions are not a proof of correctness. The Docker evaluator specifies network isolation, a read-only root, a non-root user, dropped capabilities, resource limits, and bounded output. These are inspected implementation controls, not a claim that every deployment enforces them.
+The Go backend separates repository intelligence, diagnostics, remediation planning, and execution. The Rust Tree-sitter component inventories source and computes structural metrics for supported languages. Semantic-analysis modules enrich that structural view with call relationships, dataflow, resource-lifecycle reasoning, and reusable function summaries.
 
-## Contribution
+The executor checks task eligibility and approval before preparing a workspace and selecting a registered strategy. A dry-run path and explicit strategy registry help distinguish describing an operation from carrying it out. These are visible control boundaries in source; the review does not claim that every possible integration or deployment configuration has been adversarially tested.
 
-This is collaborative work. Merged pull requests #26 and #27 are authored by Zylus08; inspected commits attribute semantic-analysis and verification changes to Saksham Mishra. That evidence supports those contributions, not sole ownership of every subsystem.
+## Structural energy as an objective
+
+The Rust analyzer computes a weighted score using cyclomatic complexity $M$, maximum nesting depth $D$, AST node count $S$, and concurrency-primitive count $C$:
+
+$$E=0.45M+0.25D+0.15\log_2(S)+0.15C.$$
+
+The implementation handles an empty node count separately and rounds the result. This is a structural code metric. The word energy does not mean measured electrical consumption, CPU work, runtime latency, or a scientific law governing software quality.
+
+The distinction changes how an improvement should be interpreted. A lower score shows that the chosen structural objective decreased under its measurement rules. It does not establish that an application runs faster, is easier for every maintainer to understand, or preserves all behavior. A well-designed evaluation should keep those outcomes separate rather than use one score as a substitute for all of them.
+
+## Semantic summaries
+
+The inspected function-summary representation records parameter-to-return taint effects, resource acquisition and release effects, error behavior, source hashes, and completeness. A synchronized cache allows summaries to be reused while retaining an identity tied to the analyzed source.
+
+This matters at call boundaries. Reanalyzing every callee from scratch is expensive and can complicate recursive reasoning, while ignoring callees loses behavior that crosses a function boundary. A summary supplies a compact description that another analysis step can consume. Its completeness information is part of that contract: an incomplete summary should not silently become proof that an effect cannot occur.
+
+Source hashes also separate an observation about one revision from an assertion about a later edit. Cached evidence needs invalidation when the relevant source changes. The review establishes the presence of these fields and cache synchronization, not a universal guarantee that every incremental-analysis dependency is complete.
+
+## Mutation and evaluation workflow
+
+The mutation agent asks an LLM for a replacement function body. That is a proposal mechanism, not a correctness argument. The annealer requires configured mutation, candidate-evaluation, and energy-evaluation interfaces before starting. It validates the target path and byte range and obtains baseline energy from the analyzer.
+
+The following is a simplified reading of the orchestration, deliberately omitting implementation-specific telemetry and termination branches:
+
+```text
+validate the target and establish baseline structural evidence
+generate a candidate transformation
+evaluate the candidate through the configured execution boundary
+measure candidate structure and retain evaluation evidence
+apply the search procedure's acceptance decision
+report the outcome and its limitations
+```
+
+Search acceptance and correctness validation are different decisions. A proposal can be attractive to the objective and fail validation; a valid candidate need not improve the objective. Keeping those concepts explicit is more useful than describing the whole loop as an autonomous optimizer with guaranteed gains.
+
+## Sandbox boundary
+
+The inspected Docker invocation includes disabled networking, a read-only container filesystem, a nonroot user, dropped capabilities, resource limits, and timeout controls. These reduce classes of accidental or hostile behavior during candidate execution. They do not remove the need to reason about mounted paths, runtime configuration, host isolation, and cleanup.
+
+Documentation and implementation defaults differ, so this case study does not repeat an old resource-limit table as if it described every current run. A reproducible deployment should record the actual evaluator settings, runtime version, image identity, mounts, and output limits. The portfolio audit did not launch that environment or attempt a container escape exercise.
+
+## Verification evidence and uncertainty
+
+The latest reviewed Phase 1.1 report describes counterfactual and adversarial verification, bounded recursion, and use of existing evaluation corpora. It explicitly limits the milestone to verification and defers broader autonomous remediation. Its fixture results are repository-authored evidence, not experiments rerun by this editorial milestone.
+
+Earlier reports use differing names for external and held-out collections. Combining their denominators or promoting a small-suite percentage into general diagnostic accuracy would be misleading. Reused corpora can be useful regression material while offering weaker evidence of generalization than a newly held-out collection. Both roles should be recorded rather than conflated.
+
+The inspected analysis also has conservative boundaries around unresolved ownership, interface dispatch, multi-hop aliases, and related call relationships. These are not merely wording issues: they determine when evidence can support a conclusion and when the system must preserve uncertainty. False positives, missed defects, and unresolved cases should remain distinguishable in a report.
+
+## Engineering tradeoffs
+
+Combining structural and semantic evidence provides more context than a single text-based heuristic, but it also introduces integration obligations. The Rust analyzer and Go consumers must agree about source identity, function locations, and the meaning of metrics. A new grammar or summary effect can change the interpretation of a score or diagnostic without changing the user-facing project name.
+
+LLM-assisted proposals offer flexibility, while the evaluator and execution gates provide explicit constraints. That architecture does not make generated edits reliable by default. Its value is that proposal generation, permission, structural measurement, and test outcomes can be examined separately. This is an interpretation of the implemented boundaries, not an invented history of alternatives evaluated by the team.
+
+## Contribution and future evaluation
+
+Merged PRs #26 and #27 and the reviewed commit history support Saksham's work on semantic analysis and verification in the shared repository. The portfolio retains that collaborative framing. The [research note](/research/software-analysis) discusses the study-design question rather than duplicating the engineering account.
+
+A stronger next evaluation would freeze diagnostic definitions, preserve unresolved cases, separate reused regression material from independent holdouts, and report correctness and structural changes independently. Any extension toward automated remediation should state its allowed transformation scope and approval boundary. Those are proposed next investigations here; no new accepted paper, deployment, or general optimization superiority is asserted.
 
 ## Results
 
@@ -54,7 +113,3 @@ Reviewed at commit [`d5ae3189dcbc`](https://github.com/CV-Code-Vitals/Thermodyna
 - [go-backend/agent/annealer.go](https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/annealer.go)
 
 The [semantic-analysis research note](/research/software-analysis) focuses on the scientific question and evaluation limits.
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

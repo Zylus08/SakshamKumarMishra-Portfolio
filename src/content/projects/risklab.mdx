@@ -11,25 +11,80 @@ code: "https://github.com/Zylus08/RiskLab"
 evidence: {"repository": "Zylus08/RiskLab", "commit": "971422295d94772d7f792753a5ba889da204ce74", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-Risk targeting changes both market exposure and trading costs. RiskLab provides a small, inspectable research setting for studying that interaction.
+RiskLab makes a small but consequential part of quantitative research inspectable: how a directional signal becomes exposure, how exposure changes incur costs, and how the resulting returns compound. Its Python backtester has a compact interface, which makes the accounting easy to review. That same compactness exposes an important limitation: neutral-signal dates are removed before turnover and wealth are calculated.
 
-## Architecture
+The M3 audit ran four isolated existing test modules at the pinned commit, obtaining 13 passes. This article explains what those checks support and why they do not establish complete correctness or profitable out-of-sample performance. The distinction matters because a passing signal-prefix test and a plausible equity curve answer different questions.
 
-Python modules separate signals, volatility scaling, backtesting, metrics, tail estimation, and stress testing. A separate C++ Monte Carlo extension is present; it was not loaded or benchmarked in this review.
+## Problem and input contract
 
-<Diagram steps="Lagged signals|Risk scaling|Net returns" />
+A trading rule can be evaluated incorrectly even if its numerical signal is calculated as intended. A signal formed from today's close cannot ordinarily earn the return that ended at that close. An exposure multiplier must use information available when the position is decided. Fees must correspond to changes in the held position, including entry into and exit from cash.
 
-## Implementation
+RiskLab's `run_backtest` receives three aligned series: asset returns, a momentum signal, and a volatility scaler. Its docstring explicitly expects the latter two to be shifted. The backtester multiplies the supplied position by the same row's asset return; it does not perform another shift internally. Therefore the caller owns the causal alignment contract. Adding an extra lag in explanatory code would describe a different implementation rather than explain this one.
 
-The backtester multiplies supplied signal and volatility exposure, computes turnover from position differences, and deducts basis-point costs. Its contract expects signals and scaling to be shifted before entry.
+## Architecture and data flow
 
-The inspected accounting computes $r_t^{net}=p_t r_t-c\lvert p_t-p_{t-1}\rvert$, where $c$ is the basis-point cost converted to a fraction. Neutral-date filtering limits how this expression maps to the full trading calendar.
+<Diagram steps="Returns and shifted signals|Align series|Compute exposure|Deduct turnover cost|Compound wealth" caption="Source-backed backtest path. Neutral rows are filtered during preparation, which is a known accounting limitation." />
 
-## Engineering decisions
+Signal construction, volatility estimation, accounting, and performance metrics are separate modules. This separation is valuable for testing: a synthetic return series can exercise accounting without downloading market data or training a model. It also creates integration obligations. Each module may be locally correct while the assembled pipeline applies the wrong lag, mismatched frequency, or inconsistent date range.
 
-Keeping the accounting function small makes cost arithmetic testable. Causality is a pipeline property: a prefix-stability test of one signal cannot certify all preprocessing and exposure calculations.
+The accounting function concatenates the three inputs by index and drops missing rows. It then removes rows whose momentum signal is zero. Only afterward does it form positions, calculate turnover, deduct costs, and compound strategy and buy-and-hold wealth. Understanding that order is more informative than calling the pipeline simply causal or vectorized.
+
+## Position and cost equations
+
+Let $s_t$ be the supplied, already-shifted signal and $v_t$ its supplied exposure scaler. For rows retained by the implementation, the position and gross return are:
+
+$$p_t=s_tv_t,\qquad g_t=p_tr_t.$$
+
+The cost rate is the configured number of basis points divided by 10,000. Subsequent-row turnover is the absolute change in position. The first retained row is charged the absolute initial position, rather than assigned zero entry turnover:
+
+$$u_t=|p_t-p_{t-1}|,\qquad n_t=g_t-\frac{b}{10000}u_t.$$
+
+The cumulative strategy wealth is the product of one plus net return. These equations explain the code's units: the basis-point rate is a fraction of exposure turnover, not a fixed cash fee or a calibrated market-impact function. The function rejects a negative transaction-cost parameter. It does not establish that a particular nonnegative choice accurately models a trading venue.
+
+This pseudocode summarizes the inspected function and deliberately preserves the problematic filtering step:
+
+```text
+align returns, supplied signal, and supplied scaler by date
+drop rows with missing inputs
+drop rows with a neutral signal
+position = signal times scaler
+gross return = position times asset return
+turnover = absolute change in position; charge the initial entry
+net return = gross return minus basis-point turnover cost
+compound net returns on the retained dates
+```
+
+## Why the neutral-date filter matters
+
+Consider a diagnostic sequence that is long, then flat, then long again. This is a hypothetical counterexample pattern, not an observed investment result. On the full calendar, closing the first position and reopening the second are separate changes. If flat dates disappear before taking position differences, two retained long observations can become adjacent. Their difference can be zero even though the actual rule exited and re-entered between them.
+
+There is a second consequence: the function compounds the buy-and-hold comparator on the same retained rows. That comparator no longer necessarily represents holding the asset through the original calendar. A comparison can therefore be affected on both sides, even when the arithmetic on each surviving row is internally consistent.
+
+This motivates a specific proposed repair: preserve a complete evaluation calendar, represent cash exposure explicitly, and compute turnover before discarding any reporting rows. The portfolio does not change the upstream repository. Nor does it claim to have quantified the performance impact for a historical dataset. The defect's direction and magnitude depend on the signals, intervening returns, and cost assumptions.
+
+## Volatility scaling as an interface
+
+The scaler gives RiskLab a way to vary position size separately from direction. A research design might reduce exposure when estimated volatility rises, but the accounting routine does not enforce a universal volatility target, leverage ceiling, or estimator. Those choices belong to the upstream configuration and preprocessing path.
+
+Keeping that distinction prevents an attractive generic inverse-volatility formula from being mistaken for the exact implementation used in every experiment. The relevant review questions are the estimator's input frequency, warm-up behavior, lag, treatment of zero or missing estimates, and units. A low-volatility observation can produce a large scaler unless another layer imposes a limit. An annualized target must not be divided by an annualized estimate and then annualized again.
+
+## Testing methodology and what passed
+
+The isolated M3 execution covered `tests/test_backtest.py`, `tests/test_no_lookahead.py`, `tests/test_volatility.py`, and `tests/test_metrics.py`. It used a pinned source copy and disabled pytest plugin autoload. Thirteen tests passed in 0.88 seconds. This is an actual prior audit result, not a newly claimed benchmark of the expanded website or the upstream simulation engine.
+
+The prefix-stability test checks a useful property: a signal calculated on a historical prefix should agree with the corresponding output when more observations are appended. It can catch some forms of future dependence in the tested signal. It cannot certify every estimator, configuration, dataset transformation, or caller of the backtester.
+
+No C++ acceleration speed, Monte Carlo throughput, full upstream test count, or independently reproduced trading result is asserted here. A test run is evidence about the assertions exercised under its inputs. The neutral-date issue illustrates why that evidence remains narrower than a complete correctness claim.
+
+## Engineering tradeoffs and future evaluation
+
+Vectorized indexed series make this accounting readable and convenient to compare against hand-worked examples. They also make alignment policy part of program semantics: dropping rows or shifting a column changes the experiment. Event-driven code would have its own information-boundary obligations; iteration alone would not guarantee causality.
+
+A useful next evaluation should include flat intervals, sign reversals, changing exposure with an unchanged signal, missing inputs, and initial positions. It should compare the entire calendar against a transparent reference ledger. Separately, market-data provenance, point-in-time universe selection, untouched evaluation periods, and cost sensitivity need documentation before interpreting strategy quality.
+
+These are editorial recommendations based on the inspected implementation, not historical decisions attributed to the author. The contribution presented is a working, testable research framework with clearly stated accounting boundaries. Its strongest result in this review is that those boundaries can be inspected and challenged, rather than hidden behind a performance headline.
 
 ## Results
 
@@ -48,7 +103,3 @@ Reviewed at commit [`971422295d94`](https://github.com/Zylus08/RiskLab/tree/9714
 - [src/volatility.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/volatility.py)
 - [tests/test_no_lookahead.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_no_lookahead.py)
 - [tests/test_backtest.py](https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_backtest.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

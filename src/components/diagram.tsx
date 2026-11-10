@@ -25,6 +25,18 @@ export function Diagram({
 export function Note({ children }: { children: React.ReactNode }) {
   return <aside className="note">{children}</aside>;
 }
+export function TableScroll({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="table-wrap"
+      role="region"
+      aria-label="Scrollable article table"
+      tabIndex={0}
+    >
+      {children}
+    </div>
+  );
+}
 export function BenchmarkTable({
   rows,
 }: {

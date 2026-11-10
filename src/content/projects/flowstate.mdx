@@ -11,25 +11,79 @@ code: "https://github.com/Zylus08/FlowState"
 evidence: {"repository": "Zylus08/FlowState", "commit": "d0410dab812dd51d0603c1d089a4e49f73bddd8b", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-A quote touching the market is not sufficient evidence that an order would fill. FlowState investigates market-making behavior through simulated execution and post-fill price movement.
+FlowState studies the gap between generating a quote and obtaining a fill. Its source separates a market-making strategy from a paper execution simulator, so a strategy cannot simply declare its own orders successful. The useful contribution is an inspectable sequence of quote generation, delayed eligibility, probabilistic fills, inventory accounting, and post-fill evaluation. It is a research model of execution, not a reconstruction of a venue's matching engine.
 
-## Architecture
+The reviewed implementation is pinned below. The account that follows distinguishes its actual equations from possible extensions. Its implemented fill probability depends on estimated depth ahead and price penetration. Neither a seeded random generator nor a live market-data connection establishes profitable or reproducible exchange trading.
 
-The source separates market-data ingestion, features, quote generation, and a local PaperExecutionSimulator. Research modules add synthetic scenarios, queue models, latency experiments, and inventory diagnostics.
+## Problem and constraints
 
-<Diagram steps="Book snapshots|Quotes|Simulated fills" />
+A passive quote is an offer to trade, not a transaction. A backtest must decide when that offer becomes available, whether the market reaches its price, and whether it obtains priority over competing liquidity. If every touched quote is treated as filled, simulated spread capture can be dominated by the fill assumption rather than the strategy. Conversely, evaluating a newly generated quote against the same snapshot that determined it can hide the behavior of quotes already resting when prices move.
 
-## Implementation
+Inventory makes this more than a prediction problem. Buying increases exposure to subsequent price declines; selling reduces that exposure or creates a short position. A strategy can make favorable-looking trades while ending with a position whose liquidation cost overwhelms its spread income. FlowState therefore keeps cash, inventory, equity, fees, and markouts distinct. Each answers a different question, and none should be substituted for an independently measured return on invested capital.
 
-The execution model combines a crossing condition with a queue-depth and price-penetration probability. It tracks maker fees, delayed quote eligibility, inventory bounds, and later markouts. These are model assumptions, not reconstructions of an exchange matching engine.
+## Architecture and event order
 
-The code defines signed markout as $s(m_{t+h}-m_t)q$, with buy-side sign $s=1$. This measures simulated post-fill price movement; it is not a realized return.
+<Diagram steps="New book snapshot|Evaluate resting quote|Update inventory|Generate next quote" caption="Simplified source-backed tick sequence; the next quote is submitted with a latency gate." />
 
-## Engineering decisions
+`src/strategy.py` produces a two-sided quote instruction. `src/execution.py` owns resting-quote state, the timestamp at which that quote becomes eligible, estimated depth ahead, and the accounting ledger. Research modules investigate queue and latency scenarios separately; their existence does not mean every research model runs inside the core simulator.
 
-Separating execution from strategy makes optimistic fill assumptions easier to challenge. A seeded fill generator supports repeatable simulations; realistic calibration still requires representative venue data.
+The documented simulator lifecycle calls `on_book` before calculating and submitting the replacement quote. This lets a previously resting order encounter the newly observed market. `submit` records the new quote and sets its ready time from quote timestamp plus configured latency. The simulator snapshots its queue-depth estimate at submission. This is an approximation: without order-by-order venue events, it cannot know the actual identities, cancellations, or priority of all orders ahead.
+
+The following is explanatory pseudocode for that ordering, not a copied function or a claim of exchange-equivalent behavior:
+
+```text
+receive the next book snapshot
+test the eligible resting quote against that snapshot
+book any accepted fills and mark current inventory
+compute a replacement quote using updated inventory
+submit it with a future eligibility timestamp
+```
+
+## Quote construction and inventory response
+
+The strategy documents an Avellaneda–Stoikov-style reservation price. In its basic form, a mid-price anchor is shifted by inventory, risk aversion, variance, and a risk horizon:
+
+$$r=s-q\gamma\sigma^2\tau.$$
+
+For positive inventory, this term moves the reservation price downward. Holding the other terms fixed, both quote prices move down: the ask becomes more aggressive and the bid less aggressive. This encourages selling and discourages further buying.
+
+The source describes a total spread comprising a variance term and an order-arrival term, with bid and ask placed around the reservation price. It also includes micro-price anchoring, flow-related skew, soft and hard inventory controls, and tick rounding. These additions mean the compact equation is a starting point, not a complete transcription of every branch in the quote function. The default horizon mode is rolling; a constant risk horizon should not be described as a continuously shrinking time to market close.
+
+Risk parameters are model choices. Their presence does not demonstrate that the inventory distribution is bounded under every application path or that a chosen risk aversion optimizes a real account's utility. Such conclusions require tests and calibration beyond reading the configuration.
+
+## The implemented fill model
+
+For a buy, penetration is quote price minus the current best ask; for a sell, it is current best bid minus quote price. Negative penetration rejects the fill. The simulator then checks whether accepting the entire requested size would breach its inventory limit. Only an eligible, permitted fill reaches the probability calculation.
+
+Let $Q$ denote nonnegative estimated depth ahead, $Q_0$ the configured depth scale, and $\Delta$ nonnegative penetration. Suppressing numerical epsilon guards for readability, the implemented model is:
+
+$$P=\operatorname{clip}_{[0,1]}\left[\frac{1}{1+Q/Q_0}\max\left(1-e^{-\eta\Delta/\mathrm{spread}},0.05\right)\right].$$
+
+The 0.05 floor matters: a quote exactly at the touch still has a small probability of filling, further reduced by the queue factor. This is an explicit modeling assumption, not an empirical estimate established by this review. A draw from the simulator's random generator decides whether the full requested fill is booked.
+
+## Accounting and adverse selection
+
+Booking a buy subtracts its signed notional from cash and increases inventory; a sell does the converse. Fees are separately deducted. Marked equity combines cash with inventory valued at the latest mid-price. The simulator also records edge relative to the mid at the fill, which is distinct from what happens afterward.
+
+For a fill of size $q_i$ and sign $s_i$, the signed markout is:
+
+$$M_h=s_i(m_{t+h}-m_t)q_i.$$
+
+A negative buy-side markout means the later mid is below the mid at the fill. That helps diagnose adverse selection, but it is not realized round-trip PnL: the entry price, fees, exit price, and inventory policy still matter. The core configuration supplies one markout horizon for the run.
+
+## Evaluation and tradeoffs
+
+The source is useful because execution assumptions are visible and separable. A researcher can inspect whether a result changes when latency, queue scale, penetration sensitivity, inventory limits, or fees change. Those are proposed sensitivity checks here, not experiments claimed to have been completed during this milestone.
+
+`research/statistics.py` provides comparison utilities. Its bootstrap samples fixed-length contiguous blocks; despite its wording, that is not a geometric-length stationary bootstrap. With short samples it falls back to block size one. Some utilities use global randomness, so the core simulator's seeded generator does not imply whole-pipeline bitwise reproducibility. Independent-sample statistical tests also need care when fills share a market trajectory.
+
+## Evidence limits and next investigation
+
+The default maker fee is zero. Before interpreting a net-performance report, record the actual configuration and venue fee assumptions. End-of-session flattening also deserves a specific accounting test: the inspected method describes taker liquidation but delegates to the common fill-booking path, which calculates fees from the maker-fee setting. That observation is a source-based review question, not a reproduced financial loss.
+
+Next work should calibrate fill assumptions against appropriate observations, preserve input events and configuration, and compare strategies under matched scenarios. A single favorable run is insufficient. Contribution attribution here is limited to the repository and sampled history established in M3; it does not claim sole authorship of every module. The results below describe inspected implementation, not new trading experiments.
 
 ## Results
 
@@ -47,7 +101,4 @@ Reviewed at commit [`d0410dab812d`](https://github.com/Zylus08/FlowState/tree/d0
 - [src/strategy.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/src/strategy.py)
 - [research/queue_model.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/queue_model.py)
 - [research/latency_sim.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/latency_sim.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.
+- [research/statistics.py](https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/statistics.py)

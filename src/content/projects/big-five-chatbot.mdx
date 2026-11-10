@@ -11,19 +11,47 @@ code: "https://github.com/Zylus08/big5-chatbot"
 evidence: {"repository": "Zylus08/big5-chatbot", "commit": "b09a90640dcf81e96c7004b465bcc0594efd5e35", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and scope
 
-A conversation can gather richer context than a static questionnaire, but extracting trait signals requires explicit state and careful interpretation.
+The public Big Five chatbot explores a conversational interface for collecting structured responses across personality facets. It separates interview state, language-model generation, output parsing, embedding-based scoring, and transcript persistence. The interesting engineering problem is maintaining a bounded interview while a generative model supplies its wording.
 
-## Architecture
+This is an experimental software system, not a validated psychological instrument. A conversational score does not establish diagnosis, stable personality measurement, or suitability for consequential decisions. The account below uses only the pinned public implementation. A separately audited private revision is neither disclosed nor presented as another public project.
 
-A FastAPI application connects survey routes, an interview session, structured LLM output, an embedding-based comparator, and SQLite persistence. Conversation history and facet coverage are maintained outside the model chain.
+## Interview state and data flow
 
-<Diagram steps="Interview state|Structured response|Exploratory scoring" />
+<Diagram steps="Session and facet coverage|Prompt and model|Structured response|Embedding score|Stored transcript" caption="Public implementation boundaries; no live model call or participant-data inspection was performed for this audit." />
 
-## Implementation
+The agent tracks coverage across 30 facets and limits repeated probing, with a cap of two in the inspected logic. Keeping this state outside the model makes progress an application property rather than an inference from a long conversation. The model can generate the next interaction, but the application retains a record of which facets have been covered.
 
-The public agent uses a prompt, Groq-backed model, and Pydantic output parser. It tracks facet coverage and limits repeated probing. The axis scorer subtracts low-pole from high-pole exemplar embeddings, projects responses onto that direction, and maps the result to a bounded scale.
+The generation path combines a prompt, a Groq-backed model, and a Pydantic output parser. Structured parsing gives downstream code an expected shape. It does not establish that the response is truthful, relevant, or psychometrically meaningful. Those are semantic properties that require additional evaluation even when the JSON or object schema is valid.
+
+The boundary between interview control and free-form generation is therefore central. An interviewer that repeats a facet indefinitely is a workflow failure; an interviewer that produces a valid structure containing an unsupported inference is a different failure. Tests for parser behavior and coverage progression cannot by themselves validate the conclusions attached to a participant.
+
+## Exemplar-axis scoring
+
+The public scorer constructs an axis from high-pole and low-pole exemplar embeddings. Conceptually, if their mean embeddings are $\mu_H$ and $\mu_L$, the direction is:
+
+$$
+a=\mu_H-\mu_L.
+$$
+
+Responses are projected onto the resulting direction and mapped to a bounded one-to-five scale. This is an explicit scoring mechanism that can be inspected independently of conversational wording. It also exposes an important assumption: similarity to selected language exemplars is being used as a proxy for the intended facet.
+
+Changing exemplar wording or the embedding model can change the axis. Mapping projections into a familiar scale does not make that scale population calibrated. Reliability, construct validity, fairness across language styles, and agreement with an established instrument are separate empirical questions. None is established by the source review, so the article does not attach accuracy or clinical significance to the scores.
+
+## Persistence and trust boundaries
+
+The inspected application persists transcripts in SQLite and uses client-supplied session identifiers. Persistence makes session continuity possible, but also creates questions about access, retention, deletion, and ownership. A UUID is an identifier, not proof that a caller is authorized to read or modify the corresponding conversation.
+
+Before public participant use, the session boundary needs an explicit authorization model and tests for cross-session access. Data minimization also needs a decision about whether raw text is required after scoring. These are unresolved deployment considerations, not claims that a particular unauthorized disclosure was demonstrated. No stored participant conversations were read or copied during the portfolio audit.
+
+## Evaluation and contribution
+
+Source inspection verifies external session state, structured parsing, bounded probing, exemplar scoring, and transcript persistence. It does not verify a live provider integration, successful completion rates, or measurement validity. A test that mocks a model response can check orchestration without answering whether real responses support reliable facet assessment.
+
+A proposed evaluation should separate software checks from measurement research. Software checks can exercise malformed model output, exhausted facet coverage, resumed sessions, and denied cross-session access. A measurement study would need consent, an appropriate comparison instrument, predefined outcomes, and uncertainty at the participant level. Those are future requirements, not results achieved here.
+
+The public contribution is thus an inspectable conversational-assessment prototype with clear component boundaries. Its most important limitation is the gap between a deterministic embedding calculation and a validated interpretation of a person. Preserving that distinction makes the engineering account useful without overstating what the interface can know.
 
 ## Results
 
@@ -41,7 +69,3 @@ Reviewed at commit [`b09a90640dcf`](https://github.com/Zylus08/big5-chatbot/tree
 - [src/embeddings/axis_scorer.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/embeddings/axis_scorer.py)
 - [src/db/database.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/db/database.py)
 - [app.py](https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/app.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

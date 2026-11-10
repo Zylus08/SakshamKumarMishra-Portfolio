@@ -11,19 +11,43 @@ code: "https://github.com/Zylus08/Regime-Shift"
 evidence: {"repository": "Zylus08/Regime-Shift", "commit": "f1f4ea017b78db07e7faed924d34711e5c34a81a", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and scope
 
-Market regimes can alter the relationship between risk and allocation. This project combines Gaussian HMM inference with regime statistics and portfolio weights.
+RegimeShift studies allocation conditioned on hidden market states. Feature preparation, HMM fitting, regime estimation, allocation, rebalancing, and reporting are separated into modules. The implementation includes a walk-forward validator, but the source audit found that chronological fitting alone does not make the entire inference and accounting path causal.
 
-## Architecture
+The core research question is whether a state estimate available at a decision time improves a subsequent allocation. That wording matters. A retrospective state label can explain a historical period without being available to a strategy operating during it. This article therefore distinguishes training separation from inference-time information and execution timing.
 
-Feature preparation, HMM fitting, regime estimation, allocation, rebalancing, and reporting are separate modules. A rolling or expanding walk-forward validator refits the scaler and HMM for each training fold.
+## Walk-forward architecture
 
-<Diagram steps="Training window|Regime inference|Portfolio simulation" />
+<Diagram steps="Training-only scaler and HMM|Whole test-sequence inference|Allocation weights|Same-date return accounting" caption="Inspected path, including the inference and timing limitations; this is not a leakage-free validation claim." />
 
-## Implementation
+The validator refits scaling and the HMM within each training fold. That is a useful boundary: test observations are not used to fit those parameters in the inspected path. The orchestration supports rolling or expanding training windows and removes overlapping output dates when combining successful folds.
 
-Training-only scaler fitting is implemented. However, the entire test window is passed to Viterbi decoding and forward-backward posterior inference. The portfolio simulator then applies date-specific weights to that same date's returns.
+However, the test window is passed as a complete sequence to Viterbi decoding and forward-backward posterior inference. A smoothed posterior conditions on observations beyond the date being labeled. In probability notation, $P(z_t\mid x_{1:T})$ for $T>t$ is a different information set from the online filtered quantity $P(z_t\mid x_{1:t})$. The notation expresses the distinction; it is not an assertion that the current implementation supplies the latter.
+
+This creates a specific limitation in the claim of out-of-sample performance. The model parameters can be fit only on past data while a test-date state still depends on later test observations. A train/test split controls one kind of leakage; it does not automatically control smoothing inside the test sequence.
+
+## Allocation and return alignment
+
+The inspected portfolio simulator applies date-specific weights to that same date's returns. Whether that is legitimate depends on when every weight input was observable and when the trade could have occurred. Without a documented execution-time convention, a date label alone cannot establish that the signal preceded the earned return.
+
+A proposed causal comparison would use filtered state estimates computed from prefixes and align each resulting allocation with a subsequent return interval. It should also account for turnover at entries, exits, and rebalance boundaries. These are proposed repairs and tests, not claims that a corrected strategy has already been evaluated.
+
+One useful regression would append future observations and verify that earlier online decisions remain unchanged. Another would use a tiny hand-calculated price path to check which interval receives each weight. Those tests answer different questions: prefix stability addresses information flow, while the hand calculation addresses accounting alignment.
+
+## Reporting and uncertainty
+
+Failed folds are logged and skipped, so the denominator in an aggregate result is the set of successful folds rather than necessarily every scheduled period. This makes failure accounting part of the research result. A summary should state which periods were planned, completed, excluded, or overlapped, rather than presenting a continuous successful history without qualification.
+
+The source includes a seeded paired circular block bootstrap with a 21-observation block setting. Block resampling can preserve some local dependence, but the selected block length remains an assumption and cannot repair a noncausal input series. Uncertainty analysis should follow a corrected evaluation path, not be used to lend credibility to one with unresolved timing.
+
+The README's lack of significance at the five-percent level is a documented upstream conclusion, not a portfolio replication. Published return tables are withheld here because their interpretation depends on the inference and accounting issues. A fixed asset universe also leaves selection and survivorship questions beyond the mechanics of the validator.
+
+## Contribution and next experiment
+
+The supported contribution is a modular regime-allocation research pipeline with fold-specific fitting and explicit reporting logic. The audit adds a precise boundary to that account: the current sequence inference and date alignment do not justify a leakage-free online-strategy claim.
+
+A next experiment should freeze the universe and data snapshot, replace retrospective inference with a documented online procedure, retain all fold outcomes, and evaluate matched baselines under the same execution and cost rules. Only then would a performance table answer the intended question. No historical simulation was rerun and no live trading service was contacted in this milestone.
 
 ## Results
 
@@ -40,7 +64,3 @@ Reviewed at commit [`f1f4ea017b78`](https://github.com/Zylus08/Regime-Shift/tree
 - [validation/walk_forward.py](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/validation/walk_forward.py)
 - [models/hmm_model.py](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/models/hmm_model.py)
 - [reports/research_report.md](https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/reports/research_report.md)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

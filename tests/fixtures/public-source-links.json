@@ -1,0 +1,362 @@
+{
+  "verified": "2026-11-10",
+  "method": "Paths checked against GitHub recursive trees fetched during M3 at the exact public commit; this is not a live HTTP availability test.",
+  "links": [
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/main.py",
+      "blob": "abaa2c45032368eb9a93af70f2db8bb16e218e8b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/data_loader.py",
+      "blob": "2c40fdadcb257ee34b11d8cae3a2c76643d0528a"
+    },
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/preprocessing.py",
+      "blob": "4d5ab3e734ba3cb041c28b552491da10d5a8530c"
+    },
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/sequence_generator.py",
+      "blob": "f3c7d782da48bd30b109f745ad4079106f5a802b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/train.py",
+      "blob": "5a3793678ca8dee228afcd6bc335def62dc711fa"
+    },
+    {
+      "url": "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/evaluate.py",
+      "blob": "1e5f623ec01852ac9fedd8c23be5a8f605181e8b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/main.py",
+      "blob": "23d39c2e810ce35039049f734191f167b76f96a1"
+    },
+    {
+      "url": "https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/data/preprocess.py",
+      "blob": "8c6a09d128a4bd705b7bd2cde2d07ba2b3247f6c"
+    },
+    {
+      "url": "https://github.com/Zylus08/Amazon-delivery-AI-project/blob/a85a7c6630673c8e2759b8e182b76fc00b186fd8/models/train_tabnet.py",
+      "blob": "d0dfbec6a026dfecb8e6ccc7a09d33d74495a864"
+    },
+    {
+      "url": "https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/backtester/engine.py",
+      "blob": "9b808be488f7f83fe6e431853f8a42281e281481"
+    },
+    {
+      "url": "https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/live/paper_broker.py",
+      "blob": "8c6e777f0e1f6213f2312598a1403f3eaef87c1c"
+    },
+    {
+      "url": "https://github.com/Zylus08/AQC/blob/ce6f3cd172d3c83114e4ca7a3b56e60f927fc3b3/aqc/live/fill_simulator.py",
+      "blob": "f332221a64847f5e5177fde236c8f494c6063303"
+    },
+    {
+      "url": "https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/agent/interview_agent.py",
+      "blob": "226687e9daa849268c8fa7957931bcb9cb3fb33c"
+    },
+    {
+      "url": "https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/embeddings/axis_scorer.py",
+      "blob": "71fddbba6a9d315e10e231627c05678e11d88f37"
+    },
+    {
+      "url": "https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/src/db/database.py",
+      "blob": "493b5548767011afcacd0de907a0715272416cfb"
+    },
+    {
+      "url": "https://github.com/Zylus08/big5-chatbot/blob/b09a90640dcf81e96c7004b465bcc0594efd5e35/app.py",
+      "blob": "81f6cfff25aa5613898bf66cc1c11f5d93d139c7"
+    },
+    {
+      "url": "https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/particle-collision-simulator/src/physics.py",
+      "blob": "efb6eb3b35a7305719814eec9a66a0e6ff208c4b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/ml/train_surrogate.py",
+      "blob": "72e4641629d57e4b831dbdb12349d4529db4ed1b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Neural-Surrogate-Monte-Carlo-Collision-Simulator/blob/99574db97977ca93543b023ffa68450d53aa9984/ml/prepare_dataset.py",
+      "blob": "abdbd8a57601e2891205c2628257866ea6326ce3"
+    },
+    {
+      "url": "https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/control_plane/raft_consensus.py",
+      "blob": "8b2d1a66d38b2a5636b80196db7ef7880a729a3b"
+    },
+    {
+      "url": "https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/scheduler/scheduling_algorithms.py",
+      "blob": "6866f069f98082d2b1ca9e9028f7fb640ade0a65"
+    },
+    {
+      "url": "https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/README.md",
+      "blob": "41df24178fade6c64beb1af4ce60fdce080158ef"
+    },
+    {
+      "url": "https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/walk_forward_validation.py",
+      "blob": "029a98cf166aa7399be7de89592ce5f5e17dc4bd"
+    },
+    {
+      "url": "https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env.py",
+      "blob": "a831ac37ad9f21de2cf4a68f8a6fa4b4474f831b"
+    },
+    {
+      "url": "https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env_maskPPO.py",
+      "blob": "11f79202a88a37d7743c82e64e9e295725fbc956"
+    },
+    {
+      "url": "https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/utils/black_scholes.py",
+      "blob": "ee8d6e416f2dc736bcf653294288bb8aea646b9b"
+    },
+    {
+      "url": "https://github.com/Zylus08/E-summit-26-app/blob/ce3abd9cca8bb20b55031f5cdb4f4b85d571012e/lib/core/services/ticket_service.dart",
+      "blob": "9b3acabee14dccefacdc18b9a1b87a1d45ffa567"
+    },
+    {
+      "url": "https://github.com/Zylus08/E-summit-26-app/blob/ce3abd9cca8bb20b55031f5cdb4f4b85d571012e/lib/core/services/accessibility_service.dart",
+      "blob": "afd9e9f08b98bfc6995b13927a5c67165302a420"
+    },
+    {
+      "url": "https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/src/execution.py",
+      "blob": "ca158be5de01f675784261cc465037cbd62ec2ac"
+    },
+    {
+      "url": "https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/src/strategy.py",
+      "blob": "5bf7c3ed6700416383c48f3ce1f080ccdf5a77cf"
+    },
+    {
+      "url": "https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/queue_model.py",
+      "blob": "e60ed4d79e1ac52cdae381f3da4108b0eb8e1e65"
+    },
+    {
+      "url": "https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/latency_sim.py",
+      "blob": "91d5f849027d8cd884c88901963e41a632c82d8d"
+    },
+    {
+      "url": "https://github.com/Zylus08/gpt2/blob/c07656c4cb6725ecd4d99b00b5e061c962ab4170/transformer/model/attention.py",
+      "blob": "2778483d4e98cbae9da106796ea20b12ad68563b"
+    },
+    {
+      "url": "https://github.com/Zylus08/gpt2/blob/c07656c4cb6725ecd4d99b00b5e061c962ab4170/core/agent.py",
+      "blob": "fe8123b5dc1e79e253e1db2cb00b71d74d398d1e"
+    },
+    {
+      "url": "https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/crates/kamish-enforce/src/lib.rs",
+      "blob": "3d3c324745f529c0e279d2b72a2c345e60400969"
+    },
+    {
+      "url": "https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/audit/pr1_review_fixes_20261107/REPORT.md",
+      "blob": "0511933d2fe808820c1db8857dd288ad0bb8848a"
+    },
+    {
+      "url": "https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/docs/CONTRACT.md",
+      "blob": "63bf0f5910f3491af653895bfb0dc438ba896123"
+    },
+    {
+      "url": "https://github.com/Zylus08/IIH-app/blob/01da42a21c6ede33bbe1d30f886c1b8152804037/lib/features/call_mentor/services/mentor_request_service.dart",
+      "blob": "eb0797b7bba3b8a0d7f2b8b69bf940a926308c14"
+    },
+    {
+      "url": "https://github.com/Zylus08/IIH-app/blob/01da42a21c6ede33bbe1d30f886c1b8152804037/README.md",
+      "blob": "8065b414d2f41e70f09a0f0c0bee46679bfe7d25"
+    },
+    {
+      "url": "https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/run_experiment.py",
+      "blob": "2bb189a93ac83c7cfbbbc2236d17e76827615ddb"
+    },
+    {
+      "url": "https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/utils/data_loader.py",
+      "blob": "fdf78eab4894db3b174ff857dac18ade3091e576"
+    },
+    {
+      "url": "https://github.com/Zylus08/IPS/blob/8d340b45b82409d33bb860ab16bd8fc549fcb066/models/registry.py",
+      "blob": "62efc0a90ea000068887e0f4d5f7b928672d7ab5"
+    },
+    {
+      "url": "https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/core/mesh/src/main/kotlin/net/meshnet/core/mesh/ble/PacketFragmenter.kt",
+      "blob": "647346e4a03ffee7a02a58084718dfb46d608558"
+    },
+    {
+      "url": "https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/README.md",
+      "blob": "2cd3d4ae6fd7e95fe4d4048622f07b250e9e2315"
+    },
+    {
+      "url": "https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/LICENSE",
+      "blob": "93fe886328ed427b7b380efedfaabee433cdc844"
+    },
+    {
+      "url": "https://github.com/Zylus08/mlsc-timetable/blob/cbd082eafd24b290391145cb0399e81c6b41303c/internal/parser/excel_parser.go",
+      "blob": "b2d2cf5917875fe142caac357840e75d1457f21a"
+    },
+    {
+      "url": "https://github.com/Zylus08/mlsc-timetable/blob/cbd082eafd24b290391145cb0399e81c6b41303c/server.go",
+      "blob": "9c993ab0223795f3590bcab5b9cb6e34d6dbf340"
+    },
+    {
+      "url": "https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/nnue_v3.cpp",
+      "blob": "937fe06a8fd6ff1fc70e73a9f72aed57213261ba"
+    },
+    {
+      "url": "https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/analysis/v0.64/native/janus_native.cpp",
+      "blob": "e162a5dfa6c4db1176708842d8e6f3d5b6b52961"
+    },
+    {
+      "url": "https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/docs/v0.65_report.md",
+      "blob": "cb7f793ba7a62592a0775efd1e8347cd425ffec6"
+    },
+    {
+      "url": "https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/validation/walk_forward.py",
+      "blob": "e04b755ba73ab915911f292cf85298958f29f3af"
+    },
+    {
+      "url": "https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/models/hmm_model.py",
+      "blob": "95826cadf24999c92549d1f4fedde431fb625138"
+    },
+    {
+      "url": "https://github.com/Zylus08/Regime-Shift/blob/f1f4ea017b78db07e7faed924d34711e5c34a81a/reports/research_report.md",
+      "blob": "7016f8457fd0856b92e30fa28e193abeb5da3624"
+    },
+    {
+      "url": "https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/matcher.py",
+      "blob": "b5c5301f7631e876e234a4f7d06f09da24a335b9"
+    },
+    {
+      "url": "https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/embedder.py",
+      "blob": "116d9716fb5e18720b8b7638980941ed4c02cbde"
+    },
+    {
+      "url": "https://github.com/Zylus08/resume_jd_match/blob/b268ee2fcb7dadb2e6f54c3395bcc491672612d1/main.py",
+      "blob": "5c6ef0b10c34ccf2104c905e2e9bec52efa10407"
+    },
+    {
+      "url": "https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/backtest.py",
+      "blob": "e9d38885147d1d68a1bd918a0029be181dd5a83f"
+    },
+    {
+      "url": "https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/signals.py",
+      "blob": "0a13eb4011bee4e12baa26bba02f6d85052f5eee"
+    },
+    {
+      "url": "https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/src/volatility.py",
+      "blob": "ef7ef400d907393ec1556c6a3e59c06c42cae928"
+    },
+    {
+      "url": "https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_no_lookahead.py",
+      "blob": "94e596bc3b092716f99eef70af75d21c4801507a"
+    },
+    {
+      "url": "https://github.com/Zylus08/RiskLab/blob/971422295d94772d7f792753a5ba889da204ce74/tests/test_backtest.py",
+      "blob": "8eb9a65ef37a9e2e20e6dceee3d6ec0522207dac"
+    },
+    {
+      "url": "https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/src/metrics.py",
+      "blob": "36d5d476eaee101bb2ce212f7eabf0dd6d96e5e2"
+    },
+    {
+      "url": "https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/src/inference.py",
+      "blob": "506048aa57bf3da9ebfc66dd6494a4057086dba6"
+    },
+    {
+      "url": "https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/docs/audit_report.md",
+      "blob": "bcf50b65abd2353e6085eda908b77b909da74bbb"
+    },
+    {
+      "url": "https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/tests/test_metrics.py",
+      "blob": "752e5e455066fb64cb04649112a63f5794f41d51"
+    },
+    {
+      "url": "https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/rag_agent.py",
+      "blob": "02796d863e68c6f7357983db4228f00817a63435"
+    },
+    {
+      "url": "https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/knowledge_base.py",
+      "blob": "8ebc487f6c489f2bdcda326424e696b6efd6d86e"
+    },
+    {
+      "url": "https://github.com/Foldinc/sama-engine/blob/c2ed9df9dcb4fcaff61fb80e05e5d4225e37cfb6/scripts/orchestration_agent.py",
+      "blob": "e7cc97b17402c8aba6b4bd04c9696d028de01ed7"
+    },
+    {
+      "url": "https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/backtester/engine.py",
+      "blob": "8e8a13bdc54c92deaa92515351fa461c429810d2"
+    },
+    {
+      "url": "https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/portfolio/risk.py",
+      "blob": "7a397a3bc118242a86407bd951598b099255cced"
+    },
+    {
+      "url": "https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/portfolio/accounting.py",
+      "blob": "8d3c4c67a1c31e426a7bf742ab7573c62463321d"
+    },
+    {
+      "url": "https://github.com/Zylus08/Satoshi_Flow/blob/0fe06286b3b86263c184c6b543b46d0fd7bd396f/research/validation.py",
+      "blob": "2515e1de4d8c4e73a4c6589f66ba34fa72a733f0"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/diagnostic/semantic/function_summary.go",
+      "blob": "02b716bf93fe6203b5eebdf985b0b809f4cde662"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/repo_intel/execution/executor.go",
+      "blob": "0a0646f3ad79cd53bc0db56b7d7855210fe43ddc"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/evaluator.go",
+      "blob": "5886eb45f9953b7c3e5c916c0bd860ca60a42e52"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/mutation.go",
+      "blob": "7ff953a4df3fabdc12792812d7c4d133ea170f8b"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/reports/milestone3_5_phase1_1_independent_verification.md",
+      "blob": "2e868c134d3ca925b599221aae54fc4716eaf4ea"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/thermodynamic-ast-engine/src/main.rs",
+      "blob": "6da984309f548816fea80d5c2bcf6325ca4693b2"
+    },
+    {
+      "url": "https://github.com/CV-Code-Vitals/Thermodynamic-Evolution-UCS503/blob/d5ae3189dcbcc34b1261f9a5d16145006c6144bb/go-backend/agent/annealer.go",
+      "blob": "6b93d5d1a8bf77159bc81a6d16f3aad634940bc7"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/matching_engine.hpp",
+      "blob": "ddb1befde2174c31735c1d77413bfbf014eb1b65"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/liquidity_analyzer.hpp",
+      "blob": "b8e08be88d2a9b92a047a9751af2956e083aa069"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/matching/risk_pipeline.hpp",
+      "blob": "8eb2d68335e1308a1bec2d82732c2907f15e0eb4"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/common/static_vector.hpp",
+      "blob": "23e49723f9279fbcfd60ce57acec8e086cbe57aa"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/scripts/validate_contracts.py",
+      "blob": "a849b28dbd4043bf3f34a231501b5a6e669341cf"
+    },
+    {
+      "url": "https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/benchmarks/results/allocator_baseline.json",
+      "blob": "da2e783f0bb8d259d1f42afddeecf3c39ebc12d9"
+    },
+    {
+      "url": "https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/experiments/loss_ablation.py",
+      "blob": "02c33b6ae7efed2ca5b954edd06ea5e8b69b35b7"
+    },
+    {
+      "url": "https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/temporal_loss.py",
+      "blob": "e0b976bd98e6d6cdf070105a015b2bd1977fb3e2"
+    },
+    {
+      "url": "https://github.com/Zylus08/SleepApnea/blob/5d86a6be99cdbaf091e0f9430416e229656a39d0/SleepApneaSSL/experiment_reports/P0_FINAL_EXPERIMENTAL_STATUS.md",
+      "blob": "aff3e36af613db805aa907e2e2eb904a247c7db5"
+    },
+    {
+      "url": "https://github.com/Zylus08/FlowState/blob/d0410dab812dd51d0603c1d089a4e49f73bddd8b/research/statistics.py",
+      "blob": "69a94dd8c59b00df680c355a1ca9787a11878219"
+    }
+  ]
+}

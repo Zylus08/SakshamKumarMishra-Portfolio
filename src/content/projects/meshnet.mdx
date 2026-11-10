@@ -11,19 +11,41 @@ code: "https://github.com/Zylus08/MeshNet"
 evidence: {"repository": "Zylus08/MeshNet", "commit": "23f7a3dd0e3033d86542d4440291a41e5c868772", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and scope
 
-Short-range links have bounded packet sizes and intermittent connectivity. MeshNet explores an offline communication stack around those constraints.
+MeshNet explores Android communication across constrained local transports. Its Kotlin modules separate mesh behavior, transport interfaces, and cryptographic components. The concrete source reviewed for this case includes application-layer fragmentation for BLE-sized payloads. That is a useful systems problem because a message visible to the application may not fit into one transport operation.
 
-## Architecture
+This portfolio audit verifies source structure, not a working field deployment. It did not run phones through connection loss, measure battery use, or certify the cryptographic design. The distinction keeps a protocol implementation from becoming an unsupported claim about range, reliability, or secure operation across arbitrary devices.
 
-The Kotlin multi-module layout separates transport, routing, protocol, storage, cryptography, and application features. The BLE layer includes fragmentation and reassembly components.
+## Fragmentation boundary
 
-<Diagram steps="Payload|BLE fragments|Reassembly" />
+<Diagram steps="Application payload|Configured fragment size|Four-byte header and chunks|Transport interface" caption="Inspected outbound fragmentation boundary. Successful reassembly and physical delivery require separate evaluation." />
 
-## Implementation
+The fragmenter emits a four-byte header containing flags, an eight-bit sequence number, and a transfer identifier. It splits payloads according to the configured size and handles single-fragment messages separately. The header consumes part of the available transport budget, so an application payload limit cannot simply be equated with the negotiated or configured packet size.
 
-The inspected fragmenter emits a four-byte header containing flags, an eight-bit sequence number, and a transfer identifier. It splits payloads to a configured size and handles single-fragment messages separately.
+The sequence field has a finite range. An eight-bit field provides 256 distinct values, which makes wraparound an explicit case to reason about. This observation does not establish the implementation's maximum safe message size: that depends on transfer identification, sequencing rules, reassembly state, and how the receiver handles repeated or wrapped values.
+
+Fragmentation is also not delivery. Splitting bytes into packets does not prove that the receiver obtains every packet, orders them correctly, rejects inconsistent transfers, or releases incomplete buffers. Those responsibilities need an explicit end-to-end contract. The diagram deliberately ends at the reviewed transport boundary rather than depicting an unverified resilient mesh as a completed outcome.
+
+## Interfaces and failure modes
+
+The project includes Bluetooth/BLE and Wi-Fi-oriented interfaces. Separating application messages from transport behavior can make it possible to reason about packet sizing independently of a particular UI action. It does not make transports interchangeable: they can differ in MTU, connection lifecycle, discovery behavior, and delivery characteristics.
+
+A useful follow-up would test the same payload at the single-fragment boundary, just beyond it, and across sequence wraparound. Loss, duplication, reordering, reconnects, and simultaneous transfers should be included in the receiver's evaluation. These are proposed cases derived from the protocol boundary, not test results claimed to have passed in this audit.
+
+Resource behavior matters alongside correctness. An incomplete message can occupy memory even when no useful application content is delivered. Limits on transfer size, concurrent partial messages, and retention time need verification before describing the system as robust under untrusted traffic. Source organization alone cannot establish those properties.
+
+## Cryptographic scope
+
+X3DH and ratchet modules are present in the repository. Their presence is evidence of implementation scope, not proof that identity establishment, key persistence, replay handling, or recovery are correct together. A protocol name should not be used as shorthand for an audited secure product.
+
+The same caution applies to the relationship between transport and encryption. A successfully encrypted payload can still be mishandled by fragmentation or session routing. Conversely, a reliable transport does not establish peer identity. A security review would need to inspect the composition and lifecycle of those boundaries, not only the existence of a cipher or key-exchange module.
+
+## Verification and next work
+
+The reviewed source establishes the fragment header and chunking behavior. Physical device-to-device operation, mesh scale, latency, battery behavior, and security remain unverified. No throughput or range chart is included because the audit did not produce measurements that would support one.
+
+A reproducible device study should pin app builds, Android versions, device models, negotiated payload budgets, and the actual transport used. It should report failed transfers and reconnect behavior along with successful messages. Synthetic packet tests can precede that study, but they cannot substitute for radio and operating-system behavior. The project remains an inspectable communication prototype with a concrete protocol boundary to validate next.
 
 ## Results
 
@@ -40,7 +62,3 @@ Reviewed at commit [`23f7a3dd0e30`](https://github.com/Zylus08/MeshNet/tree/23f7
 - [core/mesh/src/main/kotlin/net/meshnet/core/mesh/ble/PacketFragmenter.kt](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/core/mesh/src/main/kotlin/net/meshnet/core/mesh/ble/PacketFragmenter.kt)
 - [README.md](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/README.md)
 - [LICENSE](https://github.com/Zylus08/MeshNet/blob/23f7a3dd0e3033d86542d4440291a41e5c868772/LICENSE)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

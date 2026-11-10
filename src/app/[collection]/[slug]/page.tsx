@@ -5,7 +5,18 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { allEntries } from "@/lib/content";
-import { Diagram, Note, BenchmarkTable } from "@/components/diagram";
+import {
+  Diagram,
+  Note,
+  BenchmarkTable,
+  TableScroll,
+} from "@/components/diagram";
+import { ArticleContents } from "@/components/article-contents";
+import {
+  articleHeadings,
+  rehypeArticleHeadings,
+  rehypeArticleScrollRegions,
+} from "@/lib/article-headings";
 export function generateStaticParams() {
   return allEntries().map((e) => ({ collection: e.kind, slug: e.slug }));
 }
@@ -38,7 +49,7 @@ export default async function Detail({
 }) {
   const e = await entryFor(params);
   if (!e) notFound();
-  const headings = [...e.body.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+  const headings = articleHeadings(e.body);
   return (
     <article className="section detail">
       <Link className="text-link" href={`/${e.kind}`}>
@@ -65,35 +76,29 @@ export default async function Detail({
         />
       )}
       <div className="article-layout">
-        <aside className="contents">
-          <p className="micro">IN THIS NOTE</p>
-          {headings.map((h) => (
-            <a key={h} href={`#${h.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
-              {h}
-            </a>
-          ))}
-        </aside>
+        <ArticleContents headings={headings} />
         <div className="prose">
           <MDXRemote
             source={e.body}
             options={{
               mdxOptions: {
                 remarkPlugins: [remarkMath],
-                rehypePlugins: [rehypeKatex],
+                rehypePlugins: [
+                  rehypeArticleHeadings,
+                  rehypeKatex,
+                  rehypeArticleScrollRegions,
+                ],
               },
             }}
             components={{
               Diagram,
               Note,
               BenchmarkTable,
-              h2: ({ children }) => (
-                <h2
-                  id={String(children)
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, "-")}
-                >
-                  {children}
-                </h2>
+              TableScroll,
+              table: ({ children, ...props }) => (
+                <TableScroll>
+                  <table {...props}>{children}</table>
+                </TableScroll>
               ),
             }}
           />

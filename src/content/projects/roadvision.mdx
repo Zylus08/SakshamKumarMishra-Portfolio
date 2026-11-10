@@ -11,23 +11,76 @@ code: "https://github.com/Zylus08/RoadVision"
 evidence: {"repository": "Zylus08/RoadVision", "commit": "8353d5166ddb5ff2204dcd644a8bc999cdedbe90", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-A segmentation score is only meaningful when the labels, class mapping, and evaluated sample are trustworthy. RoadVision combines pretrained-model inference with tools for investigating those assumptions.
+RoadVision evaluates semantic segmentation with pretrained models and an explicit confusion-matrix implementation. The technically interesting question is not whether the interface can produce a colored street scene. It is whether the prediction, reference labels, class vocabulary, ignored pixels, and aggregation rule describe the same evaluation problem.
 
-## Architecture
+The reviewed source contains an inference wrapper, a metric kernel, and repository-authored robustness reporting. This article explains those interfaces and the limits of the reported five-scene audit. It does not claim a new segmentation architecture, a reproduced corruption benchmark, or autonomous-driving deployment.
 
-Inference, video processing, corruptions, visualization, and confusion-matrix metrics are separate modules. A Streamlit interface brings image, video, and evaluation workflows together.
+## Problem and measurement requirements
 
-<Diagram steps="Scene and labels|Segmentation|Confusion matrix" />
+Semantic segmentation assigns a class to each image pixel. A visually convincing overlay can still conceal systematic errors: large regions may dominate the picture while small classes disappear, and an incorrect label mapping can make a numerical score meaningless. Evaluation therefore needs both a reproducible prediction path and a precise definition of which pixels and classes count.
 
-## Implementation
+Ignored labels require particular care. An annotation can mark a pixel as outside the evaluated vocabulary, rather than asserting that it belongs to a background class. Treating that pixel as a normal class changes the task. Conversely, silently masking an invalid prediction can hide a model-interface problem. RoadVision handles ignored ground-truth pixels explicitly, but clips invalid predictions into the class range; those two decisions have different implications.
 
-The evaluator filters ignored ground-truth pixels, accumulates class-pair counts, and computes IoU from true-positive, false-positive, and false-negative totals. Its default averages over classes present in predictions or ground truth.
+## Architecture and model boundary
 
-## Engineering decisions
+<Diagram steps="RGB input|Pretrained model|Resize logits|Class mask|Confusion matrix" caption="Simplified source-backed inference and evaluation path; reference labels must match the output vocabulary." />
 
-Repository reports distinguish a corrupted label artifact from replacement validation pairs. They also separate CPU inference time from frame-skipped video throughput. These distinctions matter more than a single headline score.
+`RoadVisionSegmentor` accepts an image path, a NumPy array, or a PIL image and normalizes the input into an RGB image. Its SegFormer branch loads a processor and pretrained model from a configured model identifier. The inspected default identifies a Cityscapes-finetuned SegFormer-B0 model. A separate branch loads a torchvision DeepLabV3-MobileNet model and its associated transforms.
+
+The wrapper selects CPU or CUDA when device selection is automatic, puts the model in evaluation mode, and performs prediction under an inference-mode decorator. These choices establish the intended inference path. They do not establish hardware throughput, output quality, or equivalence between the label sets of different pretrained architectures.
+
+In the SegFormer path, the processor receives the configured input size. Model logits are bilinearly interpolated back to the original image dimensions before the class-wise argmax. The spatial order matters: resizing class indices after argmax would be a different operation from resizing continuous logits and then choosing a class.
+
+## Metric kernel
+
+The evaluator maintains a square integer confusion matrix. Rows represent reference classes and columns represent predicted classes. It first checks that prediction and target have equal shapes. It converts values to integer arrays, excludes the ignored target label, and excludes target values outside the valid range. Predictions for the remaining pixels are clipped into the valid range.
+
+For $K$ classes, a target/prediction pair can be encoded as a single integer $Ky+\hat y$. Counting these indices with a one-dimensional bin count and reshaping the result accumulates all class pairs without a Python loop over pixels. The following is explanatory pseudocode, not a verbatim replacement for the source:
+
+```text
+require equal prediction and target shapes
+select pixels whose target is valid and not ignored
+clip selected predictions to the class range
+encode each pair as K * target + prediction
+count pair indices and reshape into a K by K matrix
+add the matrix to accumulated evaluation state
+```
+
+For $N$ evaluated pixels, the counting operation processes those pixels and produces $K^2$ bins. Actual timing depends on input sizes, allocation, hardware, and the complete evaluation path; no timing benchmark was run in this review.
+
+## What IoU averages
+
+For class $c$, the diagonal entry is its true-positive count. The remaining column entries are false positives and the remaining row entries are false negatives. The implemented intersection-over-union is:
+
+$$\mathrm{IoU}_c=\frac{TP_c}{TP_c+FP_c+FN_c}.$$
+
+If the denominator is zero, that class appears in neither predictions nor evaluated targets. The implementation records an undefined per-class value. By default, it averages only classes whose denominator is nonzero. With the alternative option, absent classes contribute zero to the mean. These conventions can produce different aggregate values without changing a single prediction.
+
+Accumulating a confusion matrix across images also differs from averaging independently calculated per-image mIoUs. A class's union sizes influence its aggregate count-based ratio. Comparisons should therefore preserve the class-presence policy, ignored-label definition, image set, and aggregation order. Publishing a metric name without those choices leaves important parts of the experiment unspecified.
+
+## Corruption evaluation
+
+The metric module computes an absolute clean-to-corrupted mIoU drop and a relative percentage drop. The latter divides by the clean score and uses a zero fallback when that score is nonpositive. Those are reporting definitions, not evidence that a particular corruption causes a particular reduction in real driving performance.
+
+An interpretable comparison needs the same scene identities, reference labels, model weights, preprocessing, and metric settings on both sides. A corrupted image should not accidentally be resized or relabeled differently from its clean counterpart. If the set of present classes changes through prediction errors, the default averaging convention also needs to be understood when interpreting aggregate differences.
+
+The public audit report describes five scenes. That bounded demonstration is useful for tracing the pipeline, but it cannot represent every road, camera, geography, lighting condition, or weather process. No specific degradation percentage is independently reproduced here, and synthetic corruption should not be treated as equivalent to a measured distribution of physical sensor failures.
+
+## Testing and operational tradeoffs
+
+Metric tests are present in the pinned repository. They are appropriate places to check a hand-constructed confusion matrix, ignored pixels, shape mismatches, and absent classes. This milestone does not report a fresh execution of that upstream suite. The evidence here is source inspection.
+
+Clipping invalid predictions avoids invalid pair indices, but it also turns malformed model output into apparent class observations. A stricter proposed boundary would reject invalid output before scoring or separately count rejected pixels. Which behavior is appropriate depends on whether the evaluator is intended to diagnose an integration problem or continue a batch report; the current behavior must be disclosed either way.
+
+The inference wrapper records elapsed time, but a timing field alone is not a controlled benchmark. Warm-up, device transfers, model loading, synchronization, and repeated measurement conditions need specification. Hard-coded cache locations also reduce portability. A reproducibility package should make them configurable without silently changing weights or preprocessing.
+
+## Contribution and next study
+
+The contribution supported here is an applied evaluation harness with inspectable inference and metric semantics. The pretrained architectures remain upstream work; repository ownership does not justify claiming that the author invented them. The available history supports project involvement but is not a complete line-by-line sole-authorship audit.
+
+A useful next study would freeze scene identifiers and model revisions, validate label vocabulary at the inference/evaluation boundary, run the metric fixtures, and publish the exact aggregation policy alongside uncertainty appropriate to the sample size. Expanding coverage should precede stronger robustness or deployment language. The source-backed results and known limitations remain explicit below.
 
 ## Results
 
@@ -45,7 +98,3 @@ Reviewed at commit [`8353d5166ddb`](https://github.com/Zylus08/RoadVision/tree/8
 - [src/inference.py](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/src/inference.py)
 - [docs/audit_report.md](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/docs/audit_report.md)
 - [tests/test_metrics.py](https://github.com/Zylus08/RoadVision/blob/8353d5166ddb5ff2204dcd644a8bc999cdedbe90/tests/test_metrics.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

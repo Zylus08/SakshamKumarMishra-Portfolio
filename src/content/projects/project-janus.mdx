@@ -11,25 +11,69 @@ code: "https://github.com/Zylus08/Project-Janus"
 evidence: {"repository": "Zylus08/Project-Janus", "commit": "12fd92f436186348697a009bc597fe7110a5086d", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-A more accurate static evaluator does not necessarily produce stronger search. Janus investigates how learned evaluation interacts with tree size, position type, and fixed compute budgets.
+Project Janus is a chess-engine research repository spanning a Python baseline and later native C++ evaluators. Its central engineering tension is between a classical score that is cheap and inspectable and a learned score whose inference cost and training distribution can change search behavior. The reviewed native implementation supports accumulator-based neural evaluation and phase-dependent blending while retaining classical evaluation as the default.
+
+The important result is not an official rating or an established neural improvement. It is an implementation and experimental record that makes several alternatives comparable, including negative findings. The v0.65 report keeps a classical baseline distinct from frozen neural research configurations. Source inspection verifies that these paths exist; the tournament estimates and timing measurements remain repository-reported outcomes rather than experiments rerun for this portfolio.
+
+## Problem and evaluation boundary
+
+A static evaluator assigns a score to a position. A search procedure uses many such scores to choose a move. Improving one isolated score does not necessarily improve the final move under a fixed time budget: a more expensive evaluator may reduce the amount of search completed. This makes Janus an integration problem as well as a prediction problem.
+
+The data distribution also changes the question. A position suite emphasizes the positions it contains; a tournament additionally reflects its openings, time controls, color pairing, and draw policy. A result against one neural configuration does not automatically establish improvement over a classical baseline. The reviewed report makes these distinctions visible, although some of its interpretation is stronger than its uncertainty warrants.
+
+For reproduction, the unit of identity is more specific than the repository name. It includes the native source version, model weights, feature representation, blend setting, executable build, position corpus, and search budget. Using an older README to describe the entire pinned tree would miss the later native research. Conversely, using the latest report to describe an unspecified binary would make a comparison impossible to interpret.
 
 ## Architecture
 
-The repository includes a Python baseline and later native C++ research engines. Native NNUE components support accumulator refresh, quantized evaluation, and optional AVX2 paths. The latest inspected native engine exposes neural evaluation as an option while retaining a classical default.
+<Diagram steps="Position and search|Classical or blended evaluation|Search decision" caption="Evaluation boundary in the native engine. When enabled, the blend combines classical and neural scores; the neural path is optional." />
 
-<Diagram steps="Position|Search and evaluation|Controlled comparison" />
+The native sources separate the engine integration from the neural implementation. The neural path includes accumulator refresh and quantized evaluation, with an optional AVX2 implementation. The engine decides whether to use that path and how to combine its score with classical evaluation. Keeping the classical default matters operationally: the presence of a model in the repository does not mean every engine invocation runs it.
 
-## Implementation
+An accumulator represents reusable feature contributions for a position. The motivation for that representation is to avoid treating every evaluation as an unrelated full computation. Correctness still depends on the accumulator corresponding to the current board. Refresh, move application, and reversal need agreement on feature identity and state; optimization cannot be justified by a speed measurement alone if it changes the score being searched.
 
-The native v0.64 source implements phase-dependent blending between classical and neural scores. Its default disables neural evaluation. The v0.65 report documents factorial comparisons, endgame evaluation, numerical parity checks, and a distinction between frozen classical and neural research baselines.
+The project report includes numerical parity checks between implementations. That is the appropriate type of evidence for comparing an optimized evaluator with a reference path. It is not equivalent to a proof covering every legal position, CPU feature combination, or model file. This article does not turn the report's sampled parity work into a universal equivalence guarantee.
 
-The inspected adaptive blend scales its base neural weight by material phase: $\alpha(\Phi)=0.5\Phi/24$. This is an implemented weighting rule, not evidence of a strength gain.
+## Phase-dependent blending
 
-## Engineering decisions
+The reviewed adaptive path uses a material-phase quantity to scale the neural contribution. The report expresses its blend coefficient as:
 
-Keeping the classical control available makes neural changes falsifiable. Fixed-depth runtime, fixed-time behavior, static error, and tournament outcomes answer different questions and should not be collapsed into one strength claim.
+$$
+\alpha(\Phi)=\frac{1}{2}\frac{\Phi}{24},\qquad E=(1-\alpha)E_{\mathrm{classical}}+\alpha E_{\mathrm{neural}}.
+$$
+
+Here the phase variable is an implementation proxy, not an independently annotated statement that a position is an endgame. At the high end of the stated phase scale the neural contribution is one half; as material phase declines it is reduced. This differs from a fixed equal blend. It also means the model and the blend policy must be evaluated separately if a result is to be attributed to either one.
+
+The report's later analysis explicitly questions the interpretation of low material phase as endgame membership. Queenless middlegames can satisfy a material threshold while retaining strategic features unlike a simplified endgame. A subset result should therefore name the selection rule rather than borrowing a more intuitive chess label that the rule does not reliably identify.
+
+### What a factorial comparison can isolate
+
+The v0.65 report compares model versions and blend choices in a factorial setup. This is more informative than changing both at once and assigning the difference to the newer model. It asks whether a model change behaves differently under a fixed versus adaptive blend. The report also contrasts training-data scale and added feature choices, which are separate possible explanations for a score change.
+
+Those comparisons are documented experiments, not independently reproduced causal estimates. Dataset changes can bring different position coverage as well as more samples. Search outcomes can vary with budget and opening distribution. A factorial table is useful only when the remaining settings and the measurement unit are recorded; its layout alone does not remove those confounders.
+
+## Engineering tradeoffs
+
+The native path trades inspectability for performance only to the extent that the optimized and reference paths remain comparable. Quantization and vectorization make hardware and numeric conventions part of the experiment. A reproduction should state which implementation was selected, whether the requested CPU capability was available, and whether the same model and feature encoding were used in both paths.
+
+Classical evaluation remains a valuable baseline because it makes the cost of adding the neural path explicit. A comparison against an earlier neural model answers a narrower question than a comparison against classical search. Keeping both baselines prevents the phrase improved evaluator from hiding the fact that a configuration may improve one research variant while remaining uncertain against the default engine.
+
+No historical design rationale is inferred beyond the report. The source proves that alternatives exist and that a default is selected; it does not prove why every original implementation choice was made. The interpretation here is that preserving a frozen baseline and optional research path makes future comparisons easier to audit.
+
+## Evaluation and negative findings
+
+The report records position-based evaluation, tournament comparisons, native parity work, and timing experiments. Their units differ. A static-score comparison measures agreement or error on selected positions; a tournament measures game outcomes under a particular match configuration; a microbenchmark measures execution of a selected code path. These should not be merged into a single performance headline.
+
+For the exploratory adaptive-neural comparison against classical evaluation, the report gives an Elo estimate of +17.4 with a confidence interval from -17.4 to +50.7 and a reported p-value of 0.320. This interval includes no improvement. The figures are attributed to the pinned report and were not recalculated here; they do not establish an official rating or a reliable playing-strength advantage.
+
+The report also describes a prior positive estimate reversing under a changed opening distribution. That makes opening selection a central threat to generalization rather than an incidental setup detail. A favorable result on one opening set should motivate an independently selected evaluation, not become a permanent claim about the engine.
+
+## Reproduction and future work
+
+A useful next run would preserve a manifest of source, weights, compiler options, CPU path, openings, color pairs, and budgets. It should reproduce score parity before comparing playing outcomes, retain failed or interrupted games in an explicit accounting, and separate exploratory configuration selection from the final evaluation. These are proposed controls, not additional tests claimed to have run in this milestone.
+
+The companion research note focuses on the scientific comparison and uncertainty. This case study focuses on the implemented boundary between search and evaluation. Together they support a narrower but more credible account: Janus provides inspectable classical and neural paths, and its own reported experiments expose reasons not to equate a new evaluator with established strength. Manuscript-readiness language in an internal report is not evidence of submission acceptance.
 
 ## Results
 
@@ -48,7 +92,3 @@ Reviewed at commit [`12fd92f43618`](https://github.com/Zylus08/Project-Janus/tre
 - [docs/v0.65_report.md](https://github.com/Zylus08/Project-Janus/blob/12fd92f436186348697a009bc597fe7110a5086d/docs/v0.65_report.md)
 
 See [search and learned-evaluation research](/research/chess-evaluation) for the experimental question.
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

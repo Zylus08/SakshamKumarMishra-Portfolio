@@ -11,19 +11,41 @@ code: "https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler"
 evidence: {"repository": "Zylus08/Fault-tolerant-Compute-Scheduler", "commit": "445baf9c8a339e81dedce93fbbac7b59230429bd", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and scope
 
-Scheduling must respond to resource availability and failed workers. This project combines scheduling policies, job state, recovery, and a visual cluster interface.
+The Fault-tolerant Compute Scheduler explores the relationship between scheduling decisions and control-plane state. Its public Python source models consensus terms, votes, log entries, append requests, and leader state alongside scheduling algorithms. The important boundary is explicit in the inspected consensus module: it is a single-process simulation, with state described as persistent held in memory.
 
-## Architecture
+This makes the project useful for studying transitions and interfaces, but it does not demonstrate recovery across independent machines or durable agreement after a process crash. A dashboard showing many nodes can represent simulated entities. It is not evidence of an equivalently sized deployed cluster.
 
-Python modules separate control-plane logic, simulated nodes, execution, heartbeats, retries, storage, and API routes. The frontend uses Next.js and a three-dimensional cluster view.
+## Control-plane architecture
 
-<Diagram steps="Job queue|Scheduler|Simulated workers" />
+<Diagram steps="Simulated requests|Leader and log model|Scheduling policy|Simulated node state" caption="Simulation-level control path. Networked consensus, durable storage, and a production cluster were not verified." />
 
-## Implementation
+The consensus structures make several pieces of state visible: term identity, vote state, log entries, append requests, and leader role. These are meaningful concepts for understanding how a control plane coordinates changes. Their existence does not prove that every transition satisfies the safety properties of a complete Raft implementation.
 
-The inspected Raft module models terms, votes, log entries, append requests, and leader state. Its own implementation explicitly describes a single-process simulation; persistent state is held in memory.
+The scheduling module provides a separate location for placement policy. That separation is useful because deciding where work should run is different from deciding which control-plane history is authoritative. A deterministic placement choice made against divergent state can still produce inconsistent assignments. Conversely, agreement on a history does not establish that its scheduling policy optimizes the intended workload metric.
+
+The case study does not attribute an undocumented optimum or a measured utilization improvement to those interfaces. Such a claim would require an explicit objective, workload, baseline, and measurement procedure. The source and README establish a simulation-oriented system to investigate, not the numerical outcome of that investigation.
+
+## What in-memory persistence means
+
+Consensus literature uses persistent state to mean state that survives the failures assumed by the protocol. In this implementation, the inspected state remains in memory. The field's conceptual role therefore differs from its actual durability. Restarting a process can invalidate assumptions that a state-transition test within one process never exercises.
+
+A simulated leader change can demonstrate a modeled transition without showing that two independent hosts preserve committed entries after a partition and restart. The same process often shares one scheduler, clock, and failure mechanism. Those shared conditions can make a simulation easier to reproduce while omitting the failures a distributed deployment must handle.
+
+This distinction is the central engineering lesson of the project. Fault tolerance must be stated relative to a failure model. Surviving a simulated node flag change is a narrower claim than surviving loss of the process that owns every simulated node. The article retains the former scope and does not borrow production-quality language from the README.
+
+## Evaluation requirements
+
+A useful simulation study can still compare policies under controlled workloads. It should define arrival patterns, task demands, resource limits, rejection behavior, and the objective being measured. Replaying the same workload across policies would make their differences easier to interpret. Those are proposed evaluation controls, not newly measured results.
+
+Correctness tests should be separate from utilization or latency experiments. For example, a model can achieve a favorable completion time while assigning a task twice after a leadership transition. A future test suite should specify invariants for ownership and state transitions, then track violations independently of performance summaries. This audit did not execute a distributed cluster or validate those invariants end to end.
+
+## Path to a stronger system claim
+
+Moving beyond the current boundary would require independent processes, an explicit transport model, durable storage, and crash/restart tests that preserve the expected committed history. Partition tests should exercise delayed and duplicated messages rather than only toggling a node's availability variable. The resulting evaluation would be a new implementation milestone, not a reinterpretation of the current simulator.
+
+The supported portfolio contribution is a control-plane and scheduling prototype whose structures can be inspected and discussed precisely. Its remaining gap is equally concrete: simulated consensus behavior and in-memory state do not establish production fault tolerance. No deployment scale, availability figure, or optimal-scheduling claim is asserted here.
 
 ## Results
 
@@ -40,7 +62,3 @@ Reviewed at commit [`445baf9c8a33`](https://github.com/Zylus08/Fault-tolerant-Co
 - [src/control_plane/raft_consensus.py](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/control_plane/raft_consensus.py)
 - [src/scheduler/scheduling_algorithms.py](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/src/scheduler/scheduling_algorithms.py)
 - [README.md](https://github.com/Zylus08/Fault-tolerant-Compute-Scheduler/blob/445baf9c8a339e81dedce93fbbac7b59230429bd/README.md)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

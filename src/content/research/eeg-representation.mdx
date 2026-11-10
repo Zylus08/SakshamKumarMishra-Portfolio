@@ -12,11 +12,57 @@ evidence: {"repository": "Zylus08/SleepApnea", "commit": "5d86a6be99cdbaf091e0f9
 
 ## Research question
 
-Can temporal structure help learn useful EEG representations without relying on labels for every training example?
+Does reducing contrastive pressure between nearby windows from the same recording produce EEG representations that improve a held-out subject-level classification task? The public SleepApnea extension provides an implementation and an unusually consequential negative experimental record: an apparent multi-seed comparison was invalidated when pretraining was found to reset its seed internally.
 
-## Methodology
+The hypothesis is plausible but limited. Nearby windows can share structure, so treating every other window as an equally strong negative may discard useful continuity. Temporal proximity can also preserve nuisance factors, recording identity, or noise. A temporal weighting rule therefore needs evaluation; its resemblance to a physiological intuition does not establish that its representation is more useful.
 
-The public SleepApnea extension implements temporal contrastive objectives and an ablation pipeline with subject-level train, validation, and test partitions. Self-supervised fitting uses the training partition; validation selects checkpoints before test evaluation. This is an extension of a forked dataset repository, not ownership of the original dataset.
+## Data provenance and study boundary
+
+This work extends a forked dataset repository. It does not establish ownership of the original recordings. The inspected experiment consumes processed subject files and a label map; this portfolio audit did not download, inspect, or republish participant recordings. Dataset version, preprocessing provenance, label construction, and the exact files used in each reported run remain necessary reproduction inputs.
+
+The scope here is the public ablation implementation and final experimental-status report. It does not establish a verified clinical cohort manifest or a reproduced acquisition and preprocessing protocol. In particular, the final report explicitly says a proposed SHHS-like transfer evaluation was not performed. An in-domain negative result is not a measured transfer result, whether favorable or unfavorable.
+
+## Subject-level protocol
+
+<Diagram steps="Subject partition|Training-only SSL|Validation selection|One test evaluation" caption="Protocol implemented in the inspected ablation runner. The diagram does not certify every stored historical run." />
+
+The runner constructs stratified subject partitions: 20 percent test, then 25 percent of the remaining subjects for validation, leaving approximately 60/20/20 train/validation/test. The unit is the subject, not an independently shuffled window. This matters because windows from one recording can share stable characteristics; distributing them across partitions would allow a model to exploit similarities unrelated to generalization to a new subject.
+
+Self-supervised fitting uses training files. The downstream frozen-encoder procedure trains its classifier on training subjects, selects a checkpoint by validation AUROC, and evaluates the test set once within that procedure. The distinction is between representation fitting, downstream fitting, and selection. A single test call in one function does not prove that researchers never consulted test outcomes across repeated experiments.
+
+The runner imports an STFT-based encoder and compares loss variants under shared settings. The architectural claim retained here is the inspected separation between encoder training and downstream probing. Complete model and preprocessing manifests would be needed for a training replication.
+
+## Implemented temporal objective
+
+The temporal loss normalizes two augmented embedding views and forms their pairwise cosine similarities. For negative pairs from the same subject, the exponential kernel uses temporal-index distance:
+
+$$
+w_{ij}=1-\exp(-\lambda |t_i-t_j|).
+$$
+
+Cross-subject negatives receive weight one. Nearby same-subject negatives receive less weight; distant ones approach the unweighted case. The code also supports clipped linear and cutoff kernels. These are different assumptions about how temporal distance should influence contrastive pressure, not independently established physiological laws.
+
+There is a material implementation detail: this temporal objective masks both self-pairs and augmentation positives out of its denominator. The file's own comparison helper includes the positive through cross-entropy, and acknowledges the difference. Consequently, calling the implemented loss identical to a standard NT-Xent baseline would obscure a change beyond temporal weighting. Its zero weights are clamped before taking logarithms, so the numerical computation also differs from exact removal of every zero-weight pair.
+
+The same file contains a SoftCLT-inspired window-level instance objective. Its comments distinguish that adaptation from a hierarchical per-timestamp temporal component that is not implemented there. A baseline name should therefore identify the actual adaptation and denominator convention, rather than imply a complete reproduction of all components of an external method.
+
+## Seed integrity and negative evidence
+
+The final status report identifies a hardcoded `set_seed(42)` inside the earlier pretraining procedure. Reportedly, the nominally different-seed encoder checkpoints were byte-for-byte identical, while downstream heads varied. That invalidates interpretation of those runs as independent pretraining seeds. Repeating a downstream classifier does not sample uncertainty in a frozen representation that was trained only once.
+
+The report describes corrected five-seed kernel and SoftCLT comparisons with substantial variability and unstable rankings. This note treats those as documented results, not training runs reproduced here. It omits a synthetic score table because the inspected evidence does not justify reconstructing a unified, comparable table from mixed historical and corrected experiments.
+
+The reported single-valid-seed effective-rank decrease also cannot establish a general geometric law. Effective rank is a representation diagnostic; downstream utility and its uncertainty must be measured separately. The defensible conclusion is narrower than both the original positive story and a universal negative story: the available corrected record does not establish robust gains for this protocol.
+
+## Threats to validity and next experiments
+
+Subject separation is necessary but not sufficient. Preprocessing fitted across partitions, duplicated subject identities, repeated test-driven selection, or inconsistent label aggregation could still compromise a comparison. Seed propagation should be checked at each stochastic stage, with checkpoint hashes and run manifests retained. Those are proposed integrity checks, not additional verified experiments.
+
+A stronger follow-up would freeze the partition and selection rule, compare objectives with matched denominator conventions, and report paired per-seed outcomes without treating many windows as independent subjects. An external cohort would answer a different question and needs its own provenance and evaluation design. No clinical effectiveness or diagnostic suitability follows from this software and experiment review.
+
+## Publication and attribution
+
+This is an independent research note about a public extension and its documented experimental corrections. An internal decision that a narrative is ready to freeze does not establish submission, acceptance, or independent replication. The useful scientific contribution of this account is preserving the invalidation and uncertainty instead of converting an exploratory result into an established benefit.
 
 ## Results
 

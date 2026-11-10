@@ -12,11 +12,53 @@ evidence: {"repository": "CV-Code-Vitals/Thermodynamic-Evolution-UCS503", "commi
 
 ## Research question
 
-How far can static semantic evidence support change proposals while keeping uncertainty and execution boundaries explicit?
+How far can static semantic evidence support a proposed code change while preserving an explicit boundary between what was analyzed, what remains unknown, and what may be executed? Thermodynamic Evolution provides a collaborative implementation of structural analysis, semantic summaries, proposal orchestration, and gated evaluation. This research note focuses on the evidential question rather than presenting autonomous remediation as a completed capability.
 
-## Methodology
+The working hypothesis is that reusable function summaries can make some cross-function reasoning more inspectable than isolated local patterns. A summary can describe how an input reaches a return value or how a function acquires and releases a resource. That representation is valuable only if its source identity, completeness, and unresolved cases travel with the result. A compact summary that hides uncertainty would merely move the ambiguity to another interface.
 
-The collaborative Thermodynamic Evolution system combines a Rust Tree-sitter structural analyzer with Go semantic summaries, proposal orchestration, and sandbox-mediated evaluation. Structural energy is a code metric; it is not physical energy or a demonstrated runtime speedup.
+## Method and evidence types
+
+<Diagram steps="Source and syntax|Semantic summaries|Diagnostic evidence|Gated proposal evaluation" caption="Reviewed analysis and proposal boundaries. Autonomous remediation is not established by this pipeline." />
+
+The Rust Tree-sitter component computes structural metrics. Go components add repository intelligence, semantic summaries, diagnostics, planning, and execution orchestration. These are distinct forms of evidence. A structural score describes selected features of syntax; a semantic summary attempts to describe effects; an execution result observes behavior under a particular test. None should silently stand in for the others.
+
+The term energy in the project is a weighted structural objective, not measured physical energy or demonstrated runtime efficiency. Reducing a weighted combination of complexity, nesting, AST size, and concurrency counts could change the score without improving performance or maintainability. The study therefore needs independent outcomes rather than declaring the optimization objective itself a proof of useful improvement.
+
+## Summary representation and uncertainty
+
+The inspected function-summary implementation records parameter-to-return taint relationships, resource effects, and error behavior. Cached entries include source hashes and completeness information. A hash can help identify whether a summary belongs to the reviewed source, while completeness records whether the analysis resolved its intended scope. These fields address different failure modes and should not be conflated into a single valid flag.
+
+A caller can use a callee summary without expanding every implementation detail. That creates an opportunity for reuse, but also a dependency: a misleading callee summary can contaminate a caller's diagnostic. Recursion, unresolved dispatch, escaping ownership, and multi-hop aliases constrain how confidently effects can be propagated. The latest report explicitly keeps several of these cases bounded rather than claiming general soundness.
+
+Incomplete analysis should remain observable. If an unresolved call is treated as harmless by default, the absence of a reported resource problem can be mistaken for proof that resources are handled correctly. A conservative unknown result is less convenient for automation, but more informative to a reviewer deciding whether a proposed change has enough support.
+
+## Verification design
+
+The pinned Phase 1.1 report describes counterfactual and adversarial checks on a bounded fixture corpus. Counterfactual fixtures can change a relevant program property while keeping nearby syntax similar, testing whether the diagnostic responds to the intended evidence. Adversarial fixtures can expose cases where a shallow pattern would appear convincing but the semantic interpretation is unresolved.
+
+These are repository-reported checks. This portfolio milestone inspected the source and report; it did not rerun the Go or Rust research corpus. Fixture success is not an estimate of accuracy on arbitrary repositories. Reusing evaluation corpora during development further limits the independence of the reported results, even if every listed assertion passed in the original run.
+
+<TableScroll>
+<table><caption>What each evidence layer can establish</caption><thead><tr><th>Evidence</th><th>Supported interpretation</th><th>Not established</th></tr></thead><tbody><tr><td>Source inspection</td><td>Summary fields, source identity, and execution gates exist</td><td>Correctness for every program</td></tr><tr><td>Reported fixture checks</td><td>Bounded behavior under documented cases</td><td>Independent generalization accuracy</td></tr><tr><td>Structural score</td><td>Change in the configured code metric</td><td>Runtime speedup or energy saving</td></tr></tbody></table>
+</TableScroll>
+
+## Execution as a separate boundary
+
+The executor checks eligibility and approval before workspace creation and strategy selection. The source also contains containment arguments for Docker execution. These are implemented controls, but their presence does not certify a deployed sandbox or establish safety against every untrusted program. Configuration, runtime privileges, filesystem exposure, and the selected strategy remain part of the actual execution environment.
+
+The distinction matters scientifically as well as operationally. A diagnostic finding, an LLM-generated proposal, a patch that compiles, and a change that preserves intended behavior are different outcomes. Treating one as the next would inflate the system's capability without additional evidence. The latest verification report explicitly defers general autonomous remediation, so the research account preserves that boundary.
+
+## Threats to validity
+
+The strongest threat is a mismatch between the limited analysis domain and a broad interpretation of success. A small, familiar fixture corpus can exercise implementation branches without representing the range of languages, libraries, aliasing patterns, and ownership conventions found in independent projects. A count of passing fixtures is therefore not a calibrated confidence score for a new repository.
+
+Another threat is objective mismatch. Optimizing the structural score may favor transformations that reduce one measured syntactic feature while harming readability or moving complexity elsewhere. A future evaluation should compare independently judged semantic preservation and maintainability outcomes, not only before-and-after energy. This is a proposed study design, not evidence that such a comparison has already been performed.
+
+## Reproduction, attribution, and next study
+
+A useful replication would pin the analyzer, corpus, summary cache policy, execution configuration, and expected unresolved cases. It should separate development fixtures from a newly selected evaluation corpus and report false positives, false negatives, and abstentions under a predefined labeling procedure. Counterfactual cases should be retained alongside ordinary examples so that a successful score cannot hide failure on the mechanism being claimed.
+
+Merged PRs #26 and #27 support Saksham's semantic-analysis and verification contributions within this collaborative project. They do not imply sole authorship of all subsystems. No accepted publication or independent replication is established by the available evidence. The defensible research contribution is a concrete way to inspect evidence and uncertainty across analysis and proposal boundaries, together with documented reasons to limit the claims.
 
 ## Results
 

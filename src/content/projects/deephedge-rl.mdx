@@ -11,19 +11,41 @@ code: "https://github.com/Zylus08/DeepHedge-RL"
 evidence: {"repository": "Zylus08/DeepHedge-RL", "commit": "e85e7adcfe413444fdbfe988a6c3c6884493fa0e", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and simulation boundary
 
-Sequential options decisions combine market exposure, trading costs, and drawdown. DeepHedge-RL explores this as an environment-based reinforcement-learning problem.
+DeepHedge-RL investigates reinforcement-learning policies in an options environment with explicit accounting and walk-forward evaluation. The public harness supports PPO, A2C, and MaskablePPO. Its central challenge is not merely selecting an action: a policy's apparent reward depends on the pricing model, volatility input, costs, episode construction, and treatment of terminal states.
 
-## Architecture
+The reviewed environment calculates option values and Greeks with Black–Scholes rather than replaying observed option-market quotes. Consequently, its outcomes describe a modeled environment. They do not establish executable option prices, realized trading returns, or a profitable deployed strategy. This distinction remains important even when the underlying index history is historical data.
 
-Training and evaluation scripts instantiate options environments and Stable-Baselines agents. The walk-forward harness supports PPO, A2C, and MaskablePPO with explicit calendar ranges.
+## Architecture and temporal evaluation
 
-<Diagram steps="Training period|Fresh agent|Held-out episodes" />
+<Diagram steps="Calendar training window|Configured options environment|Agent training|Following-year evaluation|Fold report" caption="Implemented walk-forward orchestration; model training and market-data provenance were not reproduced here." />
 
-## Implementation
+The harness defines five expanding training windows followed by annual evaluation periods from 2019 through 2023. It records transaction-cost, slippage, capital, lot, strike, and reward settings alongside results. Those parameters belong to the experiment's identity: two policies evaluated under different cost or contract assumptions are not directly comparable merely because their output columns have the same names.
 
-The inspected harness defines five expanding training windows followed by annual evaluation periods from 2019 through 2023. It records transaction-cost, slippage, capital, lot, strike, and reward configuration alongside results. Option values and Greeks are calculated with Black–Scholes rather than replayed option quotes. Volatility comes from lagged VIX with a multiplier or realized-volatility fallbacks.
+The source configures training steps and repeated evaluation episodes, but a configuration is not proof that a run completed. It also exposes an action-mask evaluation path. A mask constrains what the policy can select under the environment's rules; it does not verify that those rules faithfully represent a historical market or that the remaining actions are economically desirable.
+
+Volatility uses lagged VIX with a multiplier or realized-volatility fallbacks. These paths need to be distinguished in a result manifest. A fallback can change the option-pricing process substantially, so a run should report which source was actually used and how missing observations were handled. The presence of a lag in one input does not establish causality for every feature or accounting step.
+
+## Boundary-condition defect
+
+The M3 audit reproduced a specific error in an isolated offline probe: the inspected pricing helper returns put delta zero for an in-the-money put at expiry and at zero volatility. Those branches require careful treatment because they influence terminal behavior and hedging decisions. The observation is a reproduced defect, not an upstream test-suite pass or a full environment reproduction.
+
+This example illustrates why evaluating only typical interior states can be misleading. A policy may spend little time at a boundary during training yet encounter it systematically at an episode endpoint. Before interpreting learned behavior, the pricing and reward paths should have explicit tests for terminal states, degenerate volatility, and position settlement. Those further tests are proposed, not reported as completed here.
+
+## Reproducibility and uncertainty
+
+Reset samples through global NumPy randomness rather than consistently using the Gymnasium seeded generator. Supplying a seed to one interface therefore does not establish that every episode choice is controlled by it. Reproduction needs a trace of the random sources actually used, alongside data snapshots and environment configuration.
+
+Repeated episodes are also not automatically independent market samples. If they reuse overlapping dates or the same annual path, a large episode count can overstate the amount of independent evidence. Likewise, a small collection of fold-level metrics does not become a precise uncertainty estimate merely by applying an independent bootstrap to it.
+
+The correct unit of resampling depends on the experiment being claimed. A comparison across market periods differs from repeated stochastic policy evaluations on one period. A future report should separate those sources of variation and present paired outcomes under matched dates and cost settings, rather than treating every recorded episode as a new market history.
+
+## Next validation steps
+
+The next useful work is to repair and test pricing boundaries, make reset randomness explicit, and verify feature timing before expensive training. Historical contract conventions and cost calibration also need independent provenance. A matched baseline should share the same model-priced environment so that differences are not caused by inconsistent accounting.
+
+No agent training, market-data download, broker connection, or live order was executed in this portfolio milestone. The supported contribution is the implemented multi-agent walk-forward harness and its inspectable configuration. The unresolved pricing and reproducibility issues remain visible because they materially limit any performance interpretation.
 
 ## Results
 
@@ -41,7 +63,3 @@ Reviewed at commit [`e85e7adcfe41`](https://github.com/Zylus08/DeepHedge-RL/tree
 - [envs/intraday_option_env.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env.py)
 - [envs/intraday_option_env_maskPPO.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/envs/intraday_option_env_maskPPO.py)
 - [utils/black_scholes.py](https://github.com/Zylus08/DeepHedge-RL/blob/e85e7adcfe413444fdbfe988a6c3c6884493fa0e/utils/black_scholes.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

@@ -11,27 +11,67 @@ code: "https://github.com/abhinav29102005/kamish"
 evidence: {"repository": "abhinav29102005/kamish", "commit": "5682594cb50450c66bad839de1d30ceccc4b4ac4", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-A streaming platform needs to decide where data may move as well as how quickly it can move. Kamish encodes placement and transfer policy as explicit broker decisions.
+Kamish explores how a streaming system can make data-placement policy part of broker admission rather than a dashboard annotation. The public Rust workspace separates policy verification, operation enforcement, append-only storage, ownership, routing, and audit records. A gateway, command-line interface, TypeScript client, and frontend expose those capabilities. The engineering question is how those boundaries behave together when a policy changes, an owner expires, or a client asks for an unsupported operation.
 
-## Architecture
+This is collaborative work. Saksham's merged PR #1 and the associated review report support a specific contribution in gateway behavior, CLI integration, policy trust, static-path containment, packaging, and release verification. They do not establish authorship of the whole platform. The existing route retains the older Hydra Stream name for link continuity; the project presented here is Kamish.
 
-The Rust workspace separates policy, enforcement, append-only storage, ownership, outboxes, routing, and audit records. A gateway, CLI, TypeScript SDK, and frontend expose the system. Earlier research used the name Hydra Stream; this existing route is retained for continuity.
+## Problem and failure model
 
-<Diagram steps="Signed policy|Broker enforcement|Audit record" />
+A topic name alone does not explain where a record may travel. A broker needs to connect the requested action, data class, destination, and active policy before deciding whether an operation is allowed. Authentication answers who made the request; policy enforcement answers whether that identified caller may perform this operation in the configured context. Confusing the two can leave an authenticated path capable of an unintended transfer.
 
-## Implementation
+The scope also has a physical boundary. A region label is authorized configuration, not proof of geography. Multiple processes on one machine can demonstrate logical partitions but still share a disk, host, and administrative account. The contract explicitly distinguishes emulated regions from independent physical failure domains. This distinction limits what local tests can establish even when their assertions are useful.
 
-The inspected enforcement function evaluates ingress, replication, export, fetch, and promotion operations against class and destination rules. Denials and accepted operations are recorded through the audit layer.
+Policy integrity and legal compliance are different claims. Signature verification can establish that a configured issuer signed a particular policy. It cannot decide whether the policy satisfies every obligation applying to a real deployment. This case study therefore discusses implemented admission and trust checks, without claiming regulatory certification or production suitability.
 
-## Engineering decisions
+## Architecture and admission boundaries
 
-Policy checks precede transfer decisions rather than being inferred from a dashboard. The reviewed PR also distinguishes the local in-memory authority from an external metadata service and verifies trusted policy issuers before installation.
+<Diagram steps="Client operation|Gateway and identity|Broker enforcement|Storage and audit" caption="Reviewed local operation path. This does not imply a verified external consensus or witness deployment." />
 
-## Contribution
+The enforcement layer evaluates ingress, replication, export, fetch, and promotion against class and destination rules. Keeping this decision separate from the user interface matters: a display restriction is ineffective if a second client can submit a broader operation directly. The inspected dashboard integration resolves an action to an actual catalog topic and class, then passes its selected local or global residency restriction to the broker.
 
-Saksham's merged PR and commit history document gateway, CLI packaging, policy-trust, static-path containment, and release-evidence work. Kamish remains a collaborative project; the portfolio does not attribute the complete platform to one author.
+Unsupported dashboard policies require an explicit console path instead of invented class names. This is a small but important interface decision. A permissive placeholder can appear to work while conveying a policy that the backend never recognized. Returning a bounded, supported operation keeps the frontend's promise aligned with the broker's vocabulary.
+
+The unified service also exposes framed TCP alongside authenticated HTTP operations. The review fixes preserve that listener, renew ownership proactively, and stop those tasks on shutdown. The handoff identifies the authority used in that local runtime as in-memory. It should not be presented as evidence that an external metadata quorum has been exercised.
+
+## Signed policy installation
+
+### Trust is more than a valid signature
+
+The reviewed publication path checks the configured trusted issuer, policy identity, freshness, and monotonic version before installing a signed policy. The startup path loads the trust configuration provisioned by initialization. These checks bind a syntactically valid bundle to the policy the service intended to accept; accepting a bundle signed by any supplied key would not establish that relationship.
+
+Version monotonicity addresses rollback within the accepted policy sequence. Freshness addresses a different condition: whether an otherwise authentic bundle is still acceptable at the time it is used. Neither property should be inferred solely from the existence of a cryptographic library. The useful source evidence is that the checks participate in installation and that the CLI exercises both trusted and untrusted issuer cases.
+
+The report distinguishes publication to the running cache from persistent multi-region rollout. A successful local installation does not demonstrate that every broker has received the policy, that restart preserves its version floor, or that an unavailable region cannot later reintroduce older authority. Those are integration questions with their own state and failure models.
+
+### Authority and durability remain separate
+
+The contract specifies an intended lease and fencing design, but labels itself an implementation direction with partially verified behavior. Its proposed metadata quorum is not automatically a payload quorum. A grant to write and durable copies of the resulting record answer separate questions, and a portfolio diagram must not collapse them into one box labeled consensus.
+
+The contract also records an in-memory producer-deduplication boundary. A local duplicate check does not prove duplicate suppression after broker restart. Similarly, a local audit file can support internal integrity checks without demonstrating independence from an attacker who controls the same host. The external witness and key-custody gates remain material limits rather than deployment details to omit.
+
+## Gateway and operator experience
+
+Static file handling is part of the security boundary because a gateway has filesystem access that a remote caller should not inherit. The reviewed changes reject traversal, encoded separators and dot segments, and symlink escapes in static serving and the CLI model fallback. Missing files return 404. The claim is about those inspected checks and tests, not an exhaustive security assessment of the service.
+
+CLI mutations retrieve the independent session CSRF token and use authenticated requests. Topic fields are aligned with the gateway's actual request and response shapes. These changes reduce the chance that a working browser and a broken CLI silently exercise different contracts. They also make a clean-room installation useful: packaging must preserve the same initialization and trust behavior as a developer checkout.
+
+Telemetry is bounded to one refresh per five seconds, with concurrent polling and event-stream requests coalesced. This is a control on repeated work, not a measured throughput improvement. Event subscriptions reconnect after login. Together these changes address observable lifecycle behavior without requiring a claim about the maximum supported number of clients.
+
+## Evaluation and reproducibility
+
+The pinned PR review report documents 251 Rust workspace tests, 17 probe tests, and 23 TypeScript SDK tests passing in its local run. It also records frontend checks, strict linting, and clean-room packaging work. These are upstream-reported outcomes. This portfolio milestone inspected the report and source; it did not rerun that Rust workspace or contact external services.
+
+One documented integration test starts the unified service, writes over framed TCP, waits 31 seconds, writes again, and checks active leases through authenticated HTTP. Its value is the interaction across a time boundary, rather than merely checking that a renewal method exists. Its scope is still the reported local runtime. It does not establish regional fault tolerance or an external consensus implementation's availability.
+
+The handoff also describes replacing timing-sensitive assumptions with state-based or virtual-time assertions. An agent retry test waits for a durable watermark within a bound instead of assuming a fixed sleep is sufficient. Promotion fixtures stage records under valid leases before explicitly expiring the test grant. These examples explain how verification became less dependent on host scheduling while retaining the intended lease checks.
+
+## Contribution and next verification steps
+
+The strongest supported contribution is making the local operational path more coherent: the gateway, authenticated CLI, policy trust configuration, frontend selections, and packaged executable agree about the operations they expose. That is a concrete integration result, separate from the broader project's distributed-system ambitions.
+
+A further evaluation should pin the executable and configuration, distinguish local authority from external services, and record restart behavior for policy state and deduplication. Independent witnesses, real key custody, persistent rollout, and failure across separate hosts require their own authorized environments. These are proposed verification steps, not capabilities claimed to have passed here. Until those boundaries are exercised, the local test evidence remains useful precisely because its scope is stated.
 
 ## Results
 
@@ -48,7 +88,3 @@ Reviewed at commit [`5682594cb504`](https://github.com/abhinav29102005/kamish/tr
 - [crates/kamish-enforce/src/lib.rs](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/crates/kamish-enforce/src/lib.rs)
 - [audit/pr1_review_fixes_20261107/REPORT.md](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/audit/pr1_review_fixes_20261107/REPORT.md)
 - [docs/CONTRACT.md](https://github.com/abhinav29102005/kamish/blob/5682594cb50450c66bad839de1d30ceccc4b4ac4/docs/CONTRACT.md)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

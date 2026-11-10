@@ -11,23 +11,80 @@ code: "https://github.com/Zylus08/TradeCore"
 evidence: {"repository": "Zylus08/TradeCore", "commit": "fed1e79d7d144a6485055585a42a32a4864b93ea", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Abstract
 
-An exchange-style order book must maintain price priority while handling partial fills and conserving volume. TradeCore explores how preallocated storage and explicit invariants can make this behavior inspectable.
+TradeCore is a matching-engine prototype whose architecture emphasizes bounded storage, explicit order-book operations, and inspectable correctness conditions. The engineering question is how to keep matching behavior predictable while processing price levels, partial fills, risk checks, and residual orders. Its source is more informative than its latency targets: it shows what is bounded, what is asserted, and where one subsystem's assumptions diverge from another's.
 
-## Architecture
+This review focuses on the pinned matcher, liquidity analyzer, risk pipeline, static result container, and benchmark checker. It does not establish exchange deployment, universal zero allocation, or a measured tail-latency guarantee. A small offline probe during M3 demonstrated that the checker reports success for an empty benchmark list, making its evidence boundary especially important.
 
-The inspected matcher applies a templated risk pipeline, scans liquidity for fill-or-kill requests, matches against the opposite book side, and inserts residual limit orders. AVL price levels and pooled orders separate price lookup from order storage.
+## Matching requirements
 
-<Diagram steps="Risk checks|Order book|Fill records" />
+An incoming limit order cannot execute at an arbitrary price merely because liquidity exists somewhere in the opposite book. A buy limit constrains the highest acceptable execution price; a sell limit constrains the lowest. Partial matching must preserve the original quantity across executed and remaining amounts. Resting orders and empty price levels must be updated consistently so later orders see the right book.
 
-## Implementation
+Order type adds another contract. A fill-or-kill order is intended to execute completely or not at all. That requirement cannot be checked using a different notion of eligible liquidity from the actual matching loop. Performance optimizations do not relax the contract: a fast prescan that counts inaccessible liquidity can make a decision the execution path cannot honor.
 
-The risk pipeline evaluates a tuple of rules using a short-circuit fold expression. The matcher contains debug assertions for trade quantities, resting prices, and the conservation of filled plus remaining volume. StaticVector uses inline arrays rather than an unbounded result container.
+## System architecture
 
-## Engineering decisions
+<Diagram steps="Risk pipeline|Liquidity decision|Price-constrained matching|Residual insertion" caption="Source-backed order-processing outline. FOK eligibility and actual match eligibility require consistent price constraints." />
 
-Fixed capacities make memory budgets explicit, but capacity exhaustion needs defined behavior. The implementation uses steady-clock timestamps; deterministic book-state reconstruction should not be confused with byte-identical timestamped outputs.
+The inspected implementation separates risk rules, liquidity analysis, and matching. Price levels use an AVL-oriented order-book structure, while pooled orders separate order storage from price lookup. This organization makes the price index and per-order lifecycle different concerns: finding a price level is not the same operation as allocating, linking, filling, or removing an order.
+
+The result path uses `StaticVector`, which stores elements in an inline array. Fixed capacity avoids an automatically growing result vector, but it turns maximum output size into an explicit requirement. A sweep can interact with multiple resting orders, so capacity must be related to the largest supported matching event. A capacity assertion is not, by itself, a documented production policy for what happens when that requirement is exceeded.
+
+## Risk composition
+
+The risk pipeline evaluates a tuple of rule types with a short-circuit fold expression. This exposes the rule composition at compile time and avoids requiring every rule invocation to go through a runtime-polymorphic interface. The relevant tradeoff is between a statically described processing path and the flexibility of changing a rule set dynamically.
+
+That structural observation should not become a historical claim that every possible alternative was benchmarked and rejected. The inspected code establishes the chosen composition mechanism. It does not supply a comparative experiment proving that the mechanism is always faster under representative workloads.
+
+The risk result contains a `std::string`, and some rejection messages are long. Consequently, inline order storage does not establish that every rejected request avoids heap allocation. A defensible allocation claim must identify the precise path measured: accepted order, rejected order, malformed input, result construction, logging, and initialization can have different behavior.
+
+## Matching invariants
+
+The matcher includes assertions about execution quantity and resting price, along with conservation of filled plus remaining volume. In simplified notation, for an incoming quantity $Q$:
+
+$$Q=Q_{\mathrm{filled}}+Q_{\mathrm{remaining}}.$$
+
+This equation is a useful local invariant, but it is not the whole specification. A system can conserve quantity while violating a limit price, time priority, order-type semantics, or book consistency. Each property needs its own observation and test cases. Assertions also have build-mode implications; their presence in source is not proof that the same checks protect a release binary.
+
+This explanatory outline reflects the inspected processing stages without pretending to be a complete implementation:
+
+```text
+evaluate the configured risk rules
+if order type requires a full fill, perform the liquidity check
+visit eligible opposite-side price levels
+record fills while reducing incoming and resting quantities
+check local quantity and price invariants
+handle any remaining quantity according to order semantics
+```
+
+## The fill-or-kill inconsistency
+
+The liquidity prescan counts opposing liquidity without receiving the incoming limit price. The actual matching loop applies that price limit. These interfaces therefore do not necessarily describe the same executable set.
+
+As a diagnostic example, imagine a buy order for which some sell liquidity lies at acceptable prices and the remainder lies above its limit. This is a hypothetical input pattern, not an observed exchange transaction. A total-liquidity prescan can accept the request even though the matching loop cannot fill it completely at allowable prices. This is the source-based reason the audit flags FOK behavior.
+
+The next test should construct precisely that separation, then inspect fills and the final book state. A repair would need to align prescan eligibility with matching eligibility and define atomic behavior if anything changes between them. No upstream repair or full counterexample execution is claimed in this portfolio milestone; the documented finding is an interface-level inconsistency supported by the inspected source.
+
+## Bounded storage and determinism
+
+Preallocation can make memory consumption more predictable, but capacity, initialization, and lifetime still need explicit handling. AVL lookup behavior can be discussed in terms of balanced-tree structure; end-to-end matching cost additionally depends on how many levels and resting orders an incoming request consumes. A single asymptotic label would obscure that workload dependence.
+
+The source also records steady-clock timestamps. Replaying identical input orders might reproduce a book-state transition while producing different timestamped outputs. Those are different definitions of determinism. A reproducibility claim should specify whether it compares state, ordered fills, timestamps, or serialized bytes, and should describe how external clocks enter the result.
+
+## Benchmark evidence
+
+The README's latency contracts are targets. The stored allocator artifact is a recorded measurement under its own conditions, not an independently reproduced P99 matching result. Neither can establish a latency distribution for mixed order types or stressed book states without the relevant workload and sampling procedure.
+
+The Python contract checker matches benchmark names, reads timing values, and compares them with thresholds. It can use a raw timing as a proxy when repetition metadata allows that path. The audit also found that it does not require all expected benchmark rows to be present. An empty `benchmarks` array therefore reaches a success message and exit code zero; M3 reproduced that behavior offline.
+
+Before trusting the checker as a release gate, require coverage of the intended cases, normalize timing units, distinguish raw observations from percentile aggregates, and reject absent evidence. Hardware, compiler flags, clock source, warm-up, repetitions, and workload composition should accompany any future latency number. These are proposed verification requirements, not completed benchmark results.
+
+## Contribution and next investigation
+
+The project demonstrates a concrete systems design whose contracts can be inspected: static rule composition, bounded result storage, indexed price levels, and explicit matching invariants. The sampled repository history supports the stated project involvement; this article does not infer sole authorship of every line or institutional adoption.
+
+The strongest next steps are correctness-first: reconcile FOK eligibility, specify capacity exhaustion, test rejected-order allocation paths, and make benchmark validation fail when evidence is absent. Only then should performance claims be expanded from component artifacts to a controlled, workload-specific distribution. The limitations below remain part of the case study rather than an appendix to a marketing claim.
 
 ## Results
 
@@ -47,7 +104,3 @@ Reviewed at commit [`fed1e79d7d14`](https://github.com/Zylus08/TradeCore/tree/fe
 - [include/tradecore/common/static_vector.hpp](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/include/tradecore/common/static_vector.hpp)
 - [scripts/validate_contracts.py](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/scripts/validate_contracts.py)
 - [benchmarks/results/allocator_baseline.json](https://github.com/Zylus08/TradeCore/blob/fed1e79d7d144a6485055585a42a32a4864b93ea/benchmarks/results/allocator_baseline.json)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.

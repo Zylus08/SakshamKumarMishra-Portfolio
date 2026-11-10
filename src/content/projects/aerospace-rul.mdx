@@ -11,19 +11,41 @@ code: "https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL"
 evidence: {"repository": "Zylus08/Rolls-Royce-Aerospace-RUL", "commit": "934d8de704e1fb93e9362741b2d70e141770e68f", "reviewed": "2026-11-09"}
 ---
 
-## Problem
+## Problem and scope
 
-Remaining useful life prediction estimates degradation from multivariate sensor sequences. The repository explores recurrent, attention-based, convolutional, and temporal-convolution models.
+Remaining useful life estimation asks how many operating cycles remain before a component reaches its recorded failure endpoint. The public project builds a sequence-modeling pipeline around C-MAPSS turbofan data, with preprocessing, window construction, training, and evaluation separated into modules. Its portfolio value is the inspectable pipeline and the methodological issues uncovered by review, not a validated maintenance recommendation.
 
-## Architecture
+The repository name includes Rolls-Royce, but the reviewed material does not establish collaboration or endorsement. The current entrypoint also contains integration defects, so stored result names cannot substitute for an executable, reproduced experiment. This case study explains both the implemented transformations and the boundaries that prevent a reliable performance claim.
 
-Separate modules load data, normalize features, build engine-wise windows, train models, and evaluate predictions. Model checkpoints and result files are present even though a top-level README is absent.
+## Data and sequence architecture
 
-<Diagram steps="Engine records|Sequence models|RUL evaluation" />
+<Diagram steps="FD001 records|Training-fitted scaling|30-cycle windows|Next-row RUL target|Model evaluation" caption="Inspected data path. The current entrypoint requires repairs before end-to-end reproduction." />
 
-## Implementation
+The loader reads FD001 files even though its interface accepts a dataset argument. Training labels count backward from each engine's recorded endpoint. Test labels use the supplied remaining-life offsets to relate the observed sequence to its later endpoint. Training and test engine identifiers belong to separate namespaces; matching integer IDs across those files is not evidence that they are the same physical engine.
 
-The inspected loader uses FD001 files and constructs test RUL using the official remaining-life offsets. Scaling is fitted on training records. Targets are capped at 125 cycles, and 30-cycle windows predict the following row. Evaluation is over overlapping windows, not simply the last window of each engine.
+The preprocessing path removes seven sensor columns and fits scaling on training records. It caps targets at 125 cycles. That cap changes the estimation problem: sufficiently early observations share the same target rather than preserving their full uncapped lifetime. A result must name this transformation because it affects both the target distribution and the interpretation of errors.
+
+The sequence generator uses 30-cycle input windows and predicts the following row. This is not interchangeable with predicting the target attached to the last input row. An off-by-one shift changes what information is available at prediction time and which remaining-life value is scored. The implementation's choice should remain explicit when comparing it with another pipeline.
+
+## Training and evaluation contract
+
+The inspected training module uses Adam and mean squared error for a configured 30 epochs. That establishes an optimization procedure, not a reproducible trained result. The reviewed path does not provide the seeded, validation-selected, engine-aware protocol needed to interpret model comparisons confidently. A report should retain the exact model, feature set, target cap, sequence alignment, and checkpoint-selection rule for each run.
+
+Evaluation operates over overlapping windows, rather than only the last available window of each test engine. These units answer different questions. Window-level metrics give longer observed trajectories more influence and contain correlated examples; a final-window-per-engine metric asks about one operational prediction per engine. Neither should be silently relabeled as the other.
+
+The evaluator contains regression and thresholded classification metrics, but the inspected implementation does not calculate the NASA score. Thresholded classification is also a derived task: its apparent performance depends on the threshold and class distribution. A portfolio table should not combine those measures with an invented benchmark score or unspecified engine-level result.
+
+## Integration defects and evidence gaps
+
+The main script imports `load_FD001`, while the inspected loader defines `load_dataset`. It also requests lowercase metric keys where the evaluator returns uppercase keys. These interface mismatches prevent treating the current entrypoint as a verified end-to-end run. They are source-observed defects; this portfolio milestone did not modify the upstream research repository or train a replacement model.
+
+Because the dataset argument is ignored, an FD004-named artifact does not prove that FD004 was loaded. Related dashboard confidence displays and hard-coded comparison values do not establish calibrated uncertainty or measured model rankings. The article therefore withholds numerical performance claims until they can be tied to a corrected run manifest and the actual data path.
+
+## Next reproducible experiment
+
+A proposed repair sequence is to align loader and metric interfaces, make dataset selection explicit, and validate the window/target relationship on a tiny synthetic engine trajectory. The subsequent evaluation should state whether it scores all windows or the last window per engine, fit transformations on training data only, and keep validation decisions separate from the final test estimate.
+
+Uncertainty should then be assessed at an appropriate independent unit, rather than treating overlapping windows as unrelated observations. These are concrete follow-up controls, not experiments claimed to have passed. The implemented modular pipeline remains useful, but dependable RUL estimates require resolving the interface and evaluation issues before interpreting stored outputs.
 
 ## Results
 
@@ -43,7 +65,3 @@ Reviewed at commit [`934d8de704e1`](https://github.com/Zylus08/Rolls-Royce-Aeros
 - [src/sequence_generator.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/sequence_generator.py)
 - [src/train.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/train.py)
 - [src/evaluate.py](https://github.com/Zylus08/Rolls-Royce-Aerospace-RUL/blob/934d8de704e1fb93e9362741b2d70e141770e68f/src/evaluate.py)
-
-## Next investigation
-
-Resolve the limitations above, preserve the reviewed commit and exact experiment configuration, and reproduce correctness checks before promoting performance or deployment claims.
