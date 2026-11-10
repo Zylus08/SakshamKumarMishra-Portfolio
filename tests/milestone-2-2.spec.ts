@@ -121,7 +121,7 @@ test("authentic photos, category covers and stable responsive frames", async ({
   );
 });
 
-test("three authentic PDFs respond and academic CV has no fabricated link", async ({
+test("four authentic PDFs respond with valid document links", async ({
   page,
   request,
 }) => {

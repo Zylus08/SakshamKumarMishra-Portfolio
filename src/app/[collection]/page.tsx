@@ -4,6 +4,7 @@ import { Explorer } from "@/components/explorer";
 import { CategoryCover } from "@/components/category-cover";
 import { writingCovers } from "@/lib/assets";
 import { Reveal } from "@/components/reveal";
+import { availableDocuments } from "@/lib/asset-files";
 const descriptions = {
   research: {
     title: "Questions worth pursuing.",
@@ -45,6 +46,10 @@ export default async function Collection({
   if (!kinds.includes(collection as Kind)) notFound();
   const kind = collection as Kind;
   const copy = descriptions[kind];
+  const academicCV =
+    kind === "research"
+      ? availableDocuments().find((doc) => doc.id === "academic")
+      : undefined;
   return (
     <Reveal>
       <div className="section archive">
@@ -52,6 +57,18 @@ export default async function Collection({
           <p className="eyebrow">SKM / {collection.toUpperCase()}</p>
           <h1>{copy.title}</h1>
           <p>{copy.intro}</p>
+          {academicCV && (
+            <p>
+              <a
+                className="text-link"
+                href={academicCV.file!}
+                download={academicCV.downloadName}
+                aria-label="Download Academic / Research CV (PDF)"
+              >
+                Academic / Research CV ↓
+              </a>
+            </p>
+          )}
         </header>
         <Explorer
           kind={kind}

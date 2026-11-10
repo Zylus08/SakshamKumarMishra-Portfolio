@@ -2,13 +2,13 @@
 
 ## Architecture and modes
 
-`ContactForm` is reused on the homepage and `/contact`. Contact remains outside the five primary tabs, but is reachable through the footer and command palette. `POST /api/contact` validates and sends; `GET /api/contact` returns only the public transport mode with `no-store` caching. Server credentials never appear in that response or client imports.
+`ContactForm` is reused on the homepage and `/contact`. Contact remains outside the five primary tabs, but is reachable through the footer and command palette. `POST /api/contact` validates and sends; `GET /api/contact` returns only public availability with `no-store` caching. Incomplete live configuration reports disabled; this check does not contact or validate provider services. Server credentials never appear in that response or client imports. Current diagnosis and setup: [M4 root cause](M4-CONTACT-ROOT-CAUSE.md), [M4 deployment guide](M4-EMAIL-DEPLOYMENT-GUIDE.md).
 
 The Route Handler uses server-only Node modules under `src/lib/contact/`. Only the shared input schema is imported by the client. Resend is called through its HTTPS REST endpoint, avoiding an unnecessary SDK dependency.
 
 - `CONTACT_TRANSPORT=mock`: validation and a bounded local rate limiter run, but no provider or Redis network call is made. The visible result explicitly says **No email was sent**. This mode works under `next start` for integration testing.
 - `CONTACT_TRANSPORT=resend`: live sending is requested, and complete configuration is mandatory. The handler fails closed on missing settings or shared-limiter failure.
-- Otherwise: local `next dev` defaults to mock; production defaults to disabled with HTTP 503 for submissions. There is no automatic live-send mode triggered by credentials alone.
+- Development, tests and Vercel previews cannot use Resend: requesting live transport there returns disabled. With no selected transport these environments default to mock. Production defaults to disabled with HTTP 503 for submissions. There is no automatic live-send mode triggered by credentials alone.
 
 The UI separates idle, validating, submitting, provider-accepted, mock, rate-limited, and failed states. HTTP 202 means the provider returned an ID; it does **not** prove inbox delivery. Network failures and ambiguous responses never display success. Message content is not persisted locally, echoed in responses, or logged.
 
@@ -29,7 +29,7 @@ Copy `.env.example` to `.env.local`. The checked-in example has blank secrets, e
 | `CONTACT_RATE_LIMIT_SECRET` | At least 32 random characters; stable across instances                     |
 | `CONTACT_ALLOWED_ORIGINS`   | Optional comma-separated exact origins for explicitly approved previews    |
 
-The canonical HTTPS site origin is always allowed. Development also allows localhost and 127.0.0.1 on port 3000. Do not configure wildcard or untrusted origins. Keep secrets in local untracked environment files or hosting environment settings; never prefix them with `NEXT_PUBLIC_`. A sending address such as a mailbox on `updates.sakshamkumarmishra.cv` is a configuration choice, not an assertion that such a mailbox/domain is currently verified.
+Both apex and `www` HTTPS portfolio origins are always allowed. Development also allows localhost and 127.0.0.1 on port 3000. Do not configure wildcard or untrusted origins. Keep secrets in local untracked environment files or hosting environment settings; never prefix them with `NEXT_PUBLIC_`. A sending address such as a mailbox on `updates.sakshamkumarmishra.cv` is a configuration choice, not an assertion that such a mailbox/domain is currently verified.
 
 ## Domain and DNS setup
 
@@ -57,4 +57,6 @@ This is a low-volume portfolio inbox. A honeypot and rate limiter reduce abuse b
 
 Redis is tested using transport mocks and algorithm tests, not a provisioned live database. Resend acceptance is tested with mocked HTTP responses. No live delivery, DNS verification, spam-folder behavior, or provider account configuration has been tested. Redis credentials and a verified sender are additional deployment dependencies.
 
-For an authorized staging check: use a controlled destination inbox, verify all configuration, confirm shared counters persist across two instances, then explicitly authorize a single real submission. Inspect Resend acceptance/delivery events and the inbox separately. Confirm Reply-To, escaped content, and rate-limit behavior. Never perform live sends as part of automated tests. A client timeout after provider acceptance may be ambiguous; there is no durable message store or delivery webhook in this milestone. Do not infer delivery or immediately auto-retry.
+For authorized production verification: follow the single-submission procedure in the M4 deployment guide. Preview deployments remain mock-only. Inspect Resend acceptance/delivery events and the intended Gmail inbox separately. Confirm Reply-To and form feedback. Never perform live sends as part of automated tests or send extra messages to test rate limits. A client timeout after provider acceptance may be ambiguous; there is no durable message store or delivery webhook in this milestone. Do not infer delivery or immediately auto-retry.
+
+Structured server diagnostics contain fixed event names, generated request IDs, missing/invalid configuration field names, provider HTTP status and a validated provider UUID when available. They do not log message contents, visitor identity, IP addresses, raw provider errors, or credentials. Delivery-path responses include `X-Contact-Request-Id` for correlation. Logging failures do not alter an accepted delivery outcome.

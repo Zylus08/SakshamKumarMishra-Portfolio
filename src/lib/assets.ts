@@ -36,7 +36,7 @@ export const documents: ProfessionalDocument[] = [
     title: "Academic / Research CV",
     description: "An extended academic and research record.",
     type: "Academic CV",
-    file: null,
+    file: "/documents/Saksham_Mishra_CV.pdf",
     downloadName: "Saksham-Kumar-Mishra-Academic-CV.pdf",
   },
 ];

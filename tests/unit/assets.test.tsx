@@ -190,9 +190,12 @@ test("photographic assets preserve real dimensions and category availability", a
   assert.equal(writingCovers.length, 4);
   assert.deepEqual(
     availableDocuments().map((doc) => doc.id),
-    ["software", "machine-learning", "quantitative"],
+    ["software", "machine-learning", "quantitative", "academic"],
   );
-  assert.equal(documents.find((doc) => doc.id === "academic")?.file, null);
+  assert.equal(
+    documents.find((doc) => doc.id === "academic")?.file,
+    "/documents/Saksham_Mishra_CV.pdf",
+  );
 });
 test("category cover missing source retains a reserved frame without a broken image", () => {
   const html = renderToStaticMarkup(<CategoryCover photo={null} />);

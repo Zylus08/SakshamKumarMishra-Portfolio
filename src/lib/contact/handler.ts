@@ -1,12 +1,23 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { contactSchema, MAX_BODY_BYTES } from "./schema";
 import {
   allowedOrigins,
   contactMode,
   liveConfiguration,
+  ContactConfigurationError,
   type ContactEnvironment,
 } from "./config";
-import { notification, sendResend, mockTransport } from "./transport";
+import {
+  notification,
+  sendResend,
+  mockTransport,
+  ContactProviderError,
+} from "./transport";
+import {
+  logContact,
+  type ContactLogger,
+  type ContactDiagnostic,
+} from "./diagnostics";
 import {
   memoryRateLimiter,
   rateKeys,
@@ -18,6 +29,7 @@ type Dependencies = {
   fetcher?: typeof fetch;
   limit?: (keys: string[]) => Promise<LimitResult>;
   now?: () => Date;
+  logger?: ContactLogger;
 };
 function result(
   status: number,
@@ -60,6 +72,22 @@ export function createContactHandler(dependencies: Dependencies = {}) {
     memory = memoryRateLimiter(),
     mockSecret = randomBytes(32).toString("hex");
   return async (request: Request): Promise<Response> => {
+    const requestId = randomUUID();
+    const report = (
+      event: ContactDiagnostic["event"],
+      details: Omit<ContactDiagnostic, "event" | "requestId"> = {},
+    ) => {
+      try {
+        (dependencies.logger || logContact)({ event, requestId, ...details });
+      } catch {
+        /* Logging must not change an already determined delivery outcome. */
+      }
+    };
+    const reply = (...args: Parameters<typeof result>) => {
+      const response = result(...args);
+      response.headers.set("X-Contact-Request-Id", requestId);
+      return response;
+    };
     if (request.method !== "POST")
       return result(405, "method", "Use POST.", {}, { Allow: "POST" });
     if (
@@ -88,17 +116,33 @@ export function createContactHandler(dependencies: Dependencies = {}) {
     if (parsed.data.website)
       return result(400, "rejected", "The request could not be accepted.");
     const mode = contactMode(env);
-    if (mode === "disabled")
-      return result(
+    if (mode === "disabled") {
+      report("disabled");
+      return reply(
         503,
         "unconfigured",
         "Message sending is not configured yet. Please try again later.",
       );
+    }
     let config: ReturnType<typeof liveConfiguration> | undefined;
     try {
       if (mode === "live") config = liveConfiguration(env);
-    } catch {
-      return result(
+    } catch (error) {
+      report("configuration_error", {
+        invalidSettings:
+          error instanceof ContactConfigurationError
+            ? error.fields.filter((name) => !!env[name]?.trim())
+            : [],
+        missingSettings: [
+          "RESEND_API_KEY",
+          "CONTACT_FROM_EMAIL",
+          "CONTACT_TO_EMAIL",
+          "UPSTASH_REDIS_REST_URL",
+          "UPSTASH_REDIS_REST_TOKEN",
+          "CONTACT_RATE_LIMIT_SECRET",
+        ].filter((name) => !env[name]?.trim()),
+      });
+      return reply(
         503,
         "unconfigured",
         "Message sending is not configured yet. Please try again later.",
@@ -116,16 +160,19 @@ export function createContactHandler(dependencies: Dependencies = {}) {
         : config
           ? sharedRateLimit(keys, config, fetcher)
           : memory(keys));
-      if (!limit.allowed)
-        return result(
+      if (!limit.allowed) {
+        report("rate_limited");
+        return reply(
           429,
           "rate_limited",
           "Too many requests. Please wait before trying again.",
           { retryAfter: limit.retryAfter },
           { "Retry-After": String(limit.retryAfter) },
         );
+      }
     } catch {
-      return result(
+      report("limiter_error");
+      return reply(
         503,
         "unavailable",
         "Message sending is temporarily unavailable. Please try again later.",
@@ -133,7 +180,7 @@ export function createContactHandler(dependencies: Dependencies = {}) {
     }
     if (mode === "mock") {
       await mockTransport();
-      return result(
+      return reply(
         200,
         "mock",
         "Test submission validated. No email was sent; real delivery is not configured.",
@@ -141,12 +188,12 @@ export function createContactHandler(dependencies: Dependencies = {}) {
     }
     const input = parsed.data;
     try {
-      await sendResend(
+      const acknowledgement = await sendResend(
         {
           from: config!.from,
           to: [config!.to],
           reply_to: input.email,
-          subject: `[SKM] ${input.subject}`,
+          subject: `[SKM Portfolio Inquiry] ${input.subject}`,
           ...notification(
             input,
             (dependencies.now?.() || new Date()).toISOString(),
@@ -155,13 +202,31 @@ export function createContactHandler(dependencies: Dependencies = {}) {
         config!.key,
         fetcher,
       );
-      return result(
+      report("provider_accepted", {
+        // Resend IDs are UUIDs. Never log arbitrary provider response strings.
+        ...(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+          acknowledgement.id,
+        )
+          ? { providerId: acknowledgement.id }
+          : {}),
+      });
+      return reply(
         202,
         "accepted",
         "Accepted by the email provider. Delivery to the inbox is not yet confirmed.",
       );
-    } catch {
-      return result(
+    } catch (error) {
+      report(
+        error instanceof ContactProviderError
+          ? `provider_${error.reason}`
+          : "provider_network",
+        {
+          ...(error instanceof ContactProviderError && error.status
+            ? { providerStatus: error.status }
+            : {}),
+        },
+      );
+      return reply(
         502,
         "failed",
         "The provider could not confirm acceptance. Please try again later.",

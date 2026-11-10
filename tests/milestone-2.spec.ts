@@ -25,8 +25,8 @@ test("resume disclosure availability, escape, outside dismissal and five tabs", 
   const summary = page.locator(".resume-menu summary");
   await summary.click();
   await expect(page.locator(".resume-popover")).toBeVisible();
-  await expect(page.locator(".resume-popover a")).toHaveCount(6);
-  await expect(page.locator(".resume-popover")).not.toContainText(
+  await expect(page.locator(".resume-popover a")).toHaveCount(8);
+  await expect(page.locator(".resume-popover")).toContainText(
     "Academic / Research CV",
   );
   await summary.press("Escape");
@@ -41,7 +41,7 @@ test("resume disclosure availability, escape, outside dismissal and five tabs", 
       page.getByRole("navigation", { name: "Primary" }).getByRole("link"),
     ).toHaveCount(5);
   await page.goto("/about");
-  await expect(page.locator("main .document-item")).toHaveCount(3);
+  await expect(page.locator("main .document-item")).toHaveCount(4);
 });
 test("authentic photos, icon metadata and compact/tablet layouts", async ({
   page,

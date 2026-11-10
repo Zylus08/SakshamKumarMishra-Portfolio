@@ -21,31 +21,49 @@ export type EmailPayload = {
   text: string;
   html: string;
 };
+export class ContactProviderError extends Error {
+  constructor(
+    public readonly reason: "rejected" | "network" | "invalid_ack",
+    public readonly status?: number,
+  ) {
+    super("Provider could not confirm acceptance");
+  }
+}
 export async function sendResend(
   payload: EmailPayload,
   key: string,
   fetcher: typeof fetch = fetch,
 ) {
-  const response = await fetcher("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error("Provider rejected request");
-  const data: unknown = await response.json();
+  let response: Response;
+  try {
+    response = await fetcher("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw new ContactProviderError("network");
+  }
+  if (!response.ok) throw new ContactProviderError("rejected", response.status);
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ContactProviderError("invalid_ack", response.status);
+  }
   if (
     !data ||
     typeof data !== "object" ||
     !("id" in data) ||
     typeof data.id !== "string" ||
-    !data.id
+    !data.id.trim()
   )
-    throw new Error("Invalid provider acknowledgement");
-  return { accepted: true as const };
+    throw new ContactProviderError("invalid_ack", response.status);
+  return { accepted: true as const, id: data.id };
 }
 export async function mockTransport() {
   return { mock: true as const };
