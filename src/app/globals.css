@@ -2072,3 +2072,122 @@ td {
     transform: none;
   }
 }
+
+/* Career reading lists sit within the engineering act, using existing tokens. */
+.career-pathways {
+  margin: 0 0 72px;
+  scroll-margin-top: 110px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 32px 0;
+}
+.career-heading h3 {
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.2;
+}
+.career-heading > p:last-child {
+  margin: 16px 0 28px;
+  max-width: 560px;
+  font-size: 14px;
+}
+.career-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.career-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 16px;
+  min-height: 56px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.career-tabs button[aria-selected="true"] {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.career-tabs button[aria-selected="true"] .micro {
+  color: var(--accent);
+}
+.career-pathways [role="tabpanel"] {
+  padding-top: 26px;
+}
+.career-statement {
+  max-width: 700px;
+  font-size: 16px;
+}
+.career-reading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  list-style: none;
+  margin: 26px 0;
+  padding: 0;
+}
+.career-reading li {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.career-reading h4 {
+  font-size: 20px;
+  line-height: 1.35;
+}
+.career-reading h4 a {
+  display: block;
+  padding: 4px 0;
+}
+.career-reading a:hover {
+  color: var(--accent);
+}
+.career-reading p {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.career-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 20px 32px;
+}
+.career-actions a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .career-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .career-reading {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .career-reading p {
+    max-width: 650px;
+  }
+}
+@media (max-width: 400px) {
+  .career-tabs button {
+    padding: 12px 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .career-tabs .micro {
+    display: none;
+  }
+  .career-actions .text-link {
+    font-size: 12px;
+  }
+}

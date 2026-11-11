@@ -46,7 +46,6 @@ export function Explorer({
   covers?: { category: string; image: ReactNode }[];
 }) {
   const [query, setQuery] = useState(""),
-    [localCategory, setLocalCategory] = useState("All"),
     [status, setStatus] = useState("All"),
     [grid, setGrid] = useState(false);
   const galleryRef = useRef<HTMLDivElement>(null);
@@ -76,12 +75,7 @@ export function Explorer({
       ...visibleEntries.map((e) => e.category),
     ]),
   ];
-  const category =
-    kind === "writing"
-      ? categories.includes(urlCategory)
-        ? urlCategory
-        : "All"
-      : localCategory;
+  const category = categories.includes(urlCategory) ? urlCategory : "All";
   useEffect(() => {
     const button = galleryRef.current?.querySelector<HTMLButtonElement>(
       '[aria-pressed="true"]',
@@ -90,10 +84,6 @@ export function Explorer({
   }, [category]);
   function setCategory(next: string) {
     if (next === category) return;
-    if (kind !== "writing") {
-      setLocalCategory(next);
-      return;
-    }
     const url = new URL(window.location.href);
     if (next === "All") url.searchParams.delete("category");
     else url.searchParams.set("category", next);

@@ -24,7 +24,9 @@ test("homepage curation and research cross-links remain bounded", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator('main a[href^="/projects/"]')).toHaveCount(7);
+  await expect(
+    page.locator('.project-stack a[href^="/projects/"]'),
+  ).toHaveCount(7);
   await expect(page.locator("main section")).toHaveCount(6);
   await page.goto("/projects/thermodynamic-evolution");
   await expect(page.locator("h1")).toHaveText("Thermodynamic Evolution");

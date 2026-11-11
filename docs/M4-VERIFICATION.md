@@ -12,12 +12,14 @@ Date: 2026-11-10. Local workspace: `E:\SakshamKumarMishra Portfolio`.
 | MDX validation | Passed: all 29 entries, including math/code/diagram and unsafe-JavaScript checks |
 | Unit tests | Passed: 50 tests, zero failures or skips (4.42 seconds) |
 | Production build | Passed: 42 pages generated |
-| Full desktop/mobile browser suite | Pending final run completion |
+| Full desktop/mobile browser suite | Passed: all 110 tests (55 desktop, 55 mobile), 7.0 minutes, exit code 0 |
 | PDF integrity | All four SHA-256 hashes match the original assets; three corrected resumes unchanged |
 | PDF inspection | Supplied Academic CV parsed and all four pages rendered and visually inspected |
 | Diff whitespace | `git diff --check` passed; only Windows line-ending notices |
 
 Local logs are retained in ignored `.tmp/m4-static.log`, `.tmp/m4-build.log`, and `.tmp/m4-browser.log`. Browser execution is bounded and uses an owned local server, explicit mock transport, and blank provider/Redis credentials. Production transport tests inject mocked network responses. No live email was sent.
+
+The first browser attempt was interrupted without a final result. Its artifacts recorded a closed browser target, a crashed target and a gallery timeout. No surviving runner or Playwright process remained when inspected. A fresh full run with incremental log output passed all 110 tests; the initial attempt is not counted as a pass. No application assertions were weakened to accommodate it. Historical M3.1 screenshot artifacts were restored after the run.
 
 Targeted unit coverage exercises production-shaped Redis-to-Resend delivery, missing/malformed configuration, invalid sender fields, provider rejection, invalid acknowledgements, network errors, safe logging, canonical origins, preview/test isolation and limiter denial/failure. Existing validation, honeypot, payload-size and shared-limiter tests remain in the suite. Browser additions verify all four actual PDF responses, MIME types, download names and bytes, Research/menu access, and honest unavailable/network-error feedback. The existing suite covers navigation, professional links, contact validation, accessibility and responsive layouts.
 

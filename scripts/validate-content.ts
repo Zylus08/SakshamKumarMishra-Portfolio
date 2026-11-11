@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { allEntries, schema } from "../src/lib/content";
-import {validateAssetConfiguration} from '../src/lib/asset-files';
-import {configuredSocials} from '../src/lib/profile';
+import { homepageProjects, resolvedPathways } from "../src/lib/career-content";
+import { validateAssetConfiguration } from "../src/lib/asset-files";
+import { configuredSocials } from "../src/lib/profile";
 validateAssetConfiguration();
 configuredSocials();
+homepageProjects();
+resolvedPathways();
 const entries = allEntries();
 assert.ok(entries.length > 0, "Expected at least one content entry");
 assert.equal(

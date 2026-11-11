@@ -7,16 +7,19 @@ import { ContactForm } from "@/components/contact-form";
 import { Photograph } from "@/components/photograph";
 import { photographs } from "@/lib/assets";
 import { getEntries } from "@/lib/content";
-import { homepageProjectLimit } from "@/lib/project-categories";
+import { homepageProjects, resolvedPathways } from "@/lib/career-content";
+import { CareerPathways } from "@/components/career-pathways";
+import { availableDocuments } from "@/lib/asset-files";
 import { profile, origin } from "@/lib/profile";
 export const metadata = { alternates: { canonical: "/" } };
 export default function Home() {
   const research = getEntries("research")
       .filter((entry) => entry.featured)
       .slice(0, 3),
-    projects = getEntries("projects")
-      .filter((entry) => entry.featured)
-      .slice(0, homepageProjectLimit);
+    projects = homepageProjects();
+  const quantResume = availableDocuments().find(
+    (doc) => doc.id === "quantitative",
+  );
   return (
     <Reveal>
       <script
@@ -54,16 +57,24 @@ export default function Home() {
               ✳
             </span>
             <p>
-              I’m Saksham. I explore machine intelligence, engineer complex
-              systems, and occasionally write about everything in between.
+              I’m Saksham. I build quantitative systems, machine-learning
+              models, and research-driven software—where correctness,
+              measurement, and performance matter.
             </p>
             <div className="hero-actions">
               <Link className="button" href="#selected-work">
                 Explore selected work <ArrowUpRight size={17} />
               </Link>
-              <Link className="text-link" href="/about">
-                A little about me ↗
-              </Link>
+              {quantResume && (
+                <a
+                  className="text-link"
+                  href={quantResume.file!}
+                  download={quantResume.downloadName}
+                  aria-label="Download Quantitative Research Resume (PDF)"
+                >
+                  Quant résumé ↓
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -136,6 +147,7 @@ export default function Home() {
             All projects <ArrowUpRight size={17} />
           </Link>
         </div>
+        <CareerPathways pathways={resolvedPathways()} />
         <div className="project-stack">
           {projects.map((e, i) => (
             <Link
@@ -177,7 +189,7 @@ export default function Home() {
                   BUILD / 0{i + 1} · {e.category}
                 </p>
                 <h3>{e.title}</h3>
-                <p>{e.summary}</p>
+                <p>{e.preview}</p>
                 <div className="tags">
                   {e.tags.map((t) => (
                     <span key={t}>{t}</span>

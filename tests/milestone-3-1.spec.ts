@@ -25,7 +25,11 @@ test("all ten homepage features open their actual articles and section anchors",
   for (const entry of featured) {
     await page.goto("/");
     const route = `/${entry.kind}/${entry.slug}`;
-    await page.locator(`main a[href="${route}"]`).click();
+    await page
+      .locator(
+        `.project-stack a[href="${route}"], .research-list a[href="${route}"]`,
+      )
+      .click();
     await expect(page).toHaveURL(new RegExp(`${route}$`));
     await expect(page.locator("h1")).toHaveText(entry.title);
     const headings = articleHeadings(entry.body);
