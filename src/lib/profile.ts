@@ -1,3 +1,5 @@
+import { journeyMilestones } from "./journey";
+
 export const profile = {
   name: "Saksham Kumar Mishra",
   city: "Delhi, India",
@@ -20,26 +22,7 @@ export const profile = {
     "Quantitative research",
     "Autonomous agents",
   ],
-  timeline: [
-    {
-      label: "Education",
-      title: "Computer Engineering",
-      description:
-        "Undergraduate at Thapar Institute of Engineering & Technology, Patiala.",
-    },
-    {
-      label: "Research interests",
-      title: "Learning useful representations",
-      description:
-        "Exploring the intersection of machine intelligence, signals, and efficient computation.",
-    },
-    {
-      label: "Engineering interests",
-      title: "From ideas to systems",
-      description:
-        "Interested in the decisions that make software reliable, measurable, and efficient.",
-    },
-  ],
+  timeline: journeyMilestones,
 };
 export type SocialPlatform =
   "github" | "linkedin" | "codeforces" | "leetcode" | "cses";

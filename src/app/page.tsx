@@ -9,6 +9,7 @@ import { photographs } from "@/lib/assets";
 import { getEntries } from "@/lib/content";
 import { homepageProjects, resolvedPathways } from "@/lib/career-content";
 import { CareerPathways } from "@/components/career-pathways";
+import { JourneyTimeline } from "@/components/journey-timeline";
 import { availableDocuments } from "@/lib/asset-files";
 import { profile, origin } from "@/lib/profile";
 export const metadata = { alternates: { canonical: "/" } };
@@ -203,30 +204,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-      <section className="section journey">
-        <div data-reveal>
-          <p className="eyebrow">03 / THE JOURNEY</p>
-          <h2>
-            Always a<br />
-            <em>student.</em>
-          </h2>
-          <p className="section-description">
-            A direction shaped by learning, making, and asking the next
-            question.
-          </p>
-        </div>
-        <div>
-          {profile.timeline.map((t, i) => (
-            <div className="timeline-item" data-reveal key={t.title}>
-              <span className="micro">
-                0{i + 1} / {t.label}
-              </span>
-              <h3>{t.title}</h3>
-              <p>{t.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <JourneyTimeline />
       <section className="section personal" data-reveal>
         <Photograph photo={photographs.lifestyle} variant="lifestyle" />
         <div>
