@@ -2,28 +2,28 @@
 export const homepageProjectOrder = [
   "tradecore",
   "flowstate",
+  "risklab",
   "roadvision",
   "hydra-stream",
-  "risklab",
   "project-janus",
   "thermodynamic-evolution",
 ] as const;
 
 export const projectPreviews: Record<string, string> = {
   tradecore:
-    "A C++20 matching-engine prototype with compile-time risk rules and fill-conservation assertions. The case study examines a fill-or-kill edge case before making latency claims.",
+    "A C++20 order-matching prototype built around bounded result storage and compile-time risk rules. The implementation pairs price-constrained fills with conservation assertions to make execution contracts inspectable.",
   flowstate:
-    "A market-making simulator that makes queue assumptions, quote latency and inventory explicit. Fill records track fees and markouts; simulated execution is not live trading.",
+    "A market-making research simulator that models quote latency, queue position and inventory. Fill-level fee, edge and markout records expose how execution assumptions shape simulated outcomes.",
   risklab:
-    "A momentum and tail-risk framework with volatility scaling and turnover accounting. Thirteen offline tests passed in the source audit; neutral-date handling still limits return comparisons.",
+    "A volatility-scaled momentum and tail-risk research framework with explicit turnover-cost accounting. An offline test subset checks signal prefix stability, backtest accounting, volatility and metrics.",
   roadvision:
-    "A road-segmentation evaluation harness around pretrained models, with explicit confusion-matrix and ignored-label semantics. Its documented five-scene audit is not broad driving validation.",
+    "A road-segmentation evaluation harness around pretrained models, with explicit confusion-matrix accumulation. Ignored-label and absent-class policies make metric definitions inspectable across clean and corrupted inputs.",
   "hydra-stream":
-    "A collaborative Rust streaming system. My merged contribution connects the gateway, authenticated CLI and policy configuration into a coherent local workflow; distributed deployment remains unverified.",
+    "A collaborative Rust event-streaming system that enforces signed residency policies at broker boundaries. My merged contribution connects gateway behavior, authenticated CLI operations and policy trust configuration.",
   "project-janus":
-    "A chess engine combining classical search with optional neural evaluation and phase-tapered blending. Source confirms the mechanisms; exploratory comparisons do not establish a strength gain.",
+    "A chess-engine research platform integrating classical search, native neural accumulators and phase-tapered evaluation. Its architecture separates search correctness, evaluator behavior and playing-strength experiments.",
   "thermodynamic-evolution":
-    "Collaborative software-analysis tooling with cached semantic summaries and gated, isolated candidate execution. Fixture evidence bounds the claims; general autonomous remediation remains deferred.",
+    "Collaborative software-analysis tooling that combines cached semantic summaries with gated candidate execution. Source hashes and completeness fields track analysis context, while isolated execution keeps proposed changes behind validation boundaries.",
 };
 
 export const careerPathways = [
@@ -32,13 +32,13 @@ export const careerPathways = [
     label: "Quantitative Finance",
     documentId: "quantitative",
     statement:
-      "Market microstructure, C++ execution systems and systematic research—examined through correctness, risk and evaluation integrity.",
+      "Execution systems, market microstructure and systematic research.",
     kind: "projects",
     slugs: ["tradecore", "flowstate", "risklab"],
     rationales: [
-      "Order execution: inspect bounded result storage, static risk-rule composition and matching invariants, including the unresolved fill-or-kill boundary.",
-      "Microstructure: examine queue and latency assumptions through fee, inventory and markout records rather than a live-return headline.",
-      "Systematic research: trace volatility scaling and turnover costs, with a tested offline subset and explicit calendar-accounting limitations.",
+      "Compile-time risk rules and bounded matching results.",
+      "Queue-aware market-making simulation and markout analysis.",
+      "Volatility scaling, turnover costs and offline accounting tests.",
     ],
     moreLabel: "Explore all quantitative work",
     moreHref: "/projects?category=Quantitative%20Finance",
@@ -48,13 +48,13 @@ export const careerPathways = [
     label: "Research",
     documentId: "academic",
     statement:
-      "Methods worth inspecting: experimental design, reproducibility and uncertainty, with limitations treated as part of the result.",
+      "Experimental methods, reproducibility and learning under uncertainty.",
     kind: "research",
     slugs: ["eeg-representation", "chess-evaluation", "software-analysis"],
     rationales: [
-      "Temporal contrastive learning and subject-level evaluation. The seed-handling correction explains why earlier rankings cannot support robust improvement.",
-      "Classical and learned chess evaluation under controlled search budgets. Opening sensitivity and uncertain comparisons bound the reported findings.",
-      "Cached semantic summaries and execution gates make change proposals inspectable. Reused fixture corpora limit generalization; remediation remains deferred.",
+      "Temporal contrastive objectives and subject-level evaluation.",
+      "Neural accumulators and controlled search comparisons.",
+      "Interprocedural summaries and evidence-gated execution.",
     ],
     moreLabel: "Explore the research archive",
     moreHref: "/research",
@@ -63,14 +63,13 @@ export const careerPathways = [
     id: "ml",
     label: "Applied ML",
     documentId: "machine-learning",
-    statement:
-      "From data preparation to model evaluation: understand the architecture, inspect the metric and make the deployment boundary explicit.",
+    statement: "Data pipelines, model integration and evaluation design.",
     kind: "projects",
     slugs: ["roadvision", "aerospace-rul", "big-five-chatbot"],
     rationales: [
-      "Pretrained segmentation meets an inspectable corruption-evaluation harness. Confusion matrices and ignored labels matter more than an unreplicated robustness claim.",
-      "C-MAPSS sequence preparation and MSE/Adam training expose the end-to-end modeling problem. Entrypoint mismatches prevent claiming a reproduced comparison.",
-      "An adaptive interview prototype with external session state and structured parsing. Public-source exemplar scoring is not population or clinical validation.",
+      "Pretrained segmentation with explicit metric semantics.",
+      "C-MAPSS sequence preparation and recurrent-model training components.",
+      "Public prototype: stateful interviews and structured trait scoring.",
     ],
     moreLabel: "Explore machine-learning projects",
     moreHref: "/projects?category=Machine%20Learning%20%26%20AI",
@@ -80,13 +79,13 @@ export const careerPathways = [
     label: "SWE / Systems",
     documentId: "software",
     statement:
-      "Systems programming and software architecture, with attention to correctness, test design and the boundaries between trusted components.",
+      "Systems programming, software architecture and trust boundaries.",
     kind: "projects",
     slugs: ["hydra-stream", "tradecore", "thermodynamic-evolution"],
     rationales: [
-      "My merged contribution to Kamish aligns gateway, authenticated CLI and policy trust configuration. The collaborative system's multi-region guarantees remain unverified.",
-      "C++20 static rule composition and bounded result storage make execution contracts inspectable. Conservation assertions reveal where correctness needs stronger tests.",
-      "Collaborative analysis tooling separates semantic summaries from candidate execution. Container gates reduce exposure without establishing universal security or autonomous repair.",
+      "Collaborative Rust streaming; my gateway and CLI integration.",
+      "C++20 memory bounds and fill-conservation assertions.",
+      "Collaborative semantic analysis and isolated candidate evaluation.",
     ],
     moreLabel: "Explore systems projects",
     moreHref: "/projects?category=Systems%20%26%20Infrastructure",

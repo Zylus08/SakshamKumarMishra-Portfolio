@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { allEntries } from "@/lib/content";
-import { origin, navigation } from "@/lib/profile";
+import { navigation } from "@/lib/profile";
+import { canonicalOrigin as origin } from "@/lib/site-metadata";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: origin + "/contact" },

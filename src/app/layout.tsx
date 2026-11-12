@@ -6,7 +6,12 @@ import "./globals.css";
 import { Header } from "@/components/header";
 import { Contact } from "@/components/contact";
 import { allEntries } from "@/lib/content";
-import { origin, profile } from "@/lib/profile";
+import { profile } from "@/lib/profile";
+import {
+  canonicalOrigin,
+  siteTitle,
+  siteDescription,
+} from "@/lib/site-metadata";
 import { availableDocuments } from "@/lib/asset-files";
 import { BrandMark } from "@/components/brand-mark";
 // Keep the existing typefaces; preload local files and align fallback metrics
@@ -54,7 +59,7 @@ const mono = localFont({
   fallback: ["monospace"],
 });
 export const metadata: Metadata = {
-  metadataBase: new URL(origin),
+  metadataBase: new URL(canonicalOrigin),
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -64,14 +69,13 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
   title: {
-    default: "Saksham Kumar Mishra — Research & Engineering",
-    template: "%s — SKM",
+    default: siteTitle,
+    template: "%s — Saksham Kumar Mishra",
   },
-  description:
-    "The digital research atelier of Saksham Kumar Mishra. Machine intelligence, systems engineering, and ideas in between.",
+  description: siteDescription,
   openGraph: {
     type: "website",
-    siteName: "SKM — A Digital Research Atelier",
+    siteName: "Saksham Kumar Mishra · SKM",
     images: ["/opengraph-image"],
   },
   twitter: { card: "summary_large_image", images: ["/opengraph-image"] },

@@ -1,4 +1,4 @@
-import { origin } from "@/lib/profile";
+import { canonicalOrigin as origin } from "@/lib/site-metadata";
 export default function robots() {
   return {
     rules: { userAgent: "*", allow: "/" },

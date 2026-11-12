@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { allEntries, schema } from "../src/lib/content";
 import { homepageProjects, resolvedPathways } from "../src/lib/career-content";
 import { journeyYears } from "../src/lib/journey";
+import { proofFor, researchPreviews } from "../src/lib/homepage-evidence";
 import { validateAssetConfiguration } from "../src/lib/asset-files";
 import { configuredSocials } from "../src/lib/profile";
 validateAssetConfiguration();
@@ -10,6 +11,12 @@ homepageProjects();
 resolvedPathways();
 journeyYears();
 const entries = allEntries();
+for (const entry of entries.filter(
+  (e) => e.featured && e.kind === "research",
+)) {
+  assert.ok(researchPreviews[entry.slug]);
+  proofFor(entry);
+}
 assert.ok(entries.length > 0, "Expected at least one content entry");
 assert.equal(
   new Set(entries.map((e) => `${e.kind}/${e.slug}`)).size,

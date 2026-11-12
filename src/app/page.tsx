@@ -10,13 +10,29 @@ import { getEntries } from "@/lib/content";
 import { homepageProjects, resolvedPathways } from "@/lib/career-content";
 import { CareerPathways } from "@/components/career-pathways";
 import { JourneyTimeline } from "@/components/journey-timeline";
+import { ExperienceStrip } from "@/components/experience-strip";
+import { proofFor, researchPreviews } from "@/lib/homepage-evidence";
+import {
+  canonicalOrigin,
+  pageMetadata,
+  siteTitle,
+  siteDescription,
+} from "@/lib/site-metadata";
 import { availableDocuments } from "@/lib/asset-files";
-import { profile, origin } from "@/lib/profile";
-export const metadata = { alternates: { canonical: "/" } };
+import { profile } from "@/lib/profile";
+export const metadata = {
+  ...pageMetadata(siteTitle, siteDescription, "/"),
+  title: { absolute: siteTitle },
+};
 export default function Home() {
   const research = getEntries("research")
       .filter((entry) => entry.featured)
-      .slice(0, 3),
+      .slice(0, 3)
+      .map((entry) => ({
+        ...entry,
+        preview: researchPreviews[entry.slug],
+        proof: proofFor(entry),
+      })),
     projects = homepageProjects();
   const quantResume = availableDocuments().find(
     (doc) => doc.id === "quantitative",
@@ -30,9 +46,8 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "Person",
             name: profile.name,
-            url: origin,
-            description:
-              "Computer Engineering undergraduate interested in machine learning and systems engineering.",
+            url: canonicalOrigin,
+            description: siteDescription,
           }),
         }}
       />
@@ -79,6 +94,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+        <ExperienceStrip />
         <Field />
         <div className="hero-bottom micro">
           <span>RESEARCHER / ENGINEER / BUILDER</span>
@@ -117,7 +133,10 @@ export default function Home() {
               <div>
                 <p className="micro">{e.category}</p>
                 <h3>{e.title}</h3>
-                <p>{e.summary}</p>
+                <p>{e.preview}</p>
+                <p className="proof-point">
+                  <span>{e.proof.classification}</span> · {e.proof.label}
+                </p>
                 <span className="status">{e.status}</span>
               </div>
               <div className={`abstract abstract-${i}`} aria-hidden="true">
@@ -191,6 +210,9 @@ export default function Home() {
                 </p>
                 <h3>{e.title}</h3>
                 <p>{e.preview}</p>
+                <p className="proof-point">
+                  <span>{e.proof.classification}</span> · {e.proof.label}
+                </p>
                 <div className="tags">
                   {e.tags.map((t) => (
                     <span key={t}>{t}</span>

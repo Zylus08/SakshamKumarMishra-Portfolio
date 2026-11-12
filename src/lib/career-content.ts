@@ -6,6 +6,7 @@ import {
   projectPreviews,
 } from "./career-pathways";
 import { homepageProjectLimit } from "./project-categories";
+import { proofFor } from "./homepage-evidence";
 
 export function homepageProjects(entries = getEntries("projects")) {
   const featured = entries.filter((entry) => entry.featured);
@@ -21,7 +22,7 @@ export function homepageProjects(entries = getEntries("projects")) {
     const entry = featured.find((item) => item.slug === slug);
     if (!entry || !projectPreviews[slug])
       throw new Error(`Invalid homepage selection: ${slug}`);
-    return { ...entry, preview: projectPreviews[slug] };
+    return { ...entry, preview: projectPreviews[slug], proof: proofFor(entry) };
   });
 }
 

@@ -13,9 +13,9 @@ test("homepage ranking preserves exactly the seven featured articles", () => {
     [
       "tradecore",
       "flowstate",
+      "risklab",
       "roadvision",
       "hydra-stream",
-      "risklab",
       "project-janus",
       "thermodynamic-evolution",
     ],

@@ -138,7 +138,7 @@ test("metadata, 404 and writing empty state", async ({ page, request }) => {
   await expect(page.getByText("No entries here. Yet.")).toBeVisible();
   await expect(page.locator("link[rel=canonical]")).toHaveAttribute(
     "href",
-    "https://sakshamkumarmishra.cv/writing",
+    "https://www.sakshamkumarmishra.cv/writing",
   );
   expect((await request.get("/missing-page")).status()).toBe(404);
   expect((await request.get("/research/missing")).status()).toBe(404);

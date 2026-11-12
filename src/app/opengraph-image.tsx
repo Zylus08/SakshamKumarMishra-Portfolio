@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
-export const alt = "Saksham Kumar Mishra — The pursuit of understanding";
+export const alt =
+  "Saksham Kumar Mishra — Quantitative systems, applied ML and research-driven software";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export default function Image() {
@@ -17,7 +18,7 @@ export default function Image() {
       }}
     >
       <div style={{ fontSize: 25, letterSpacing: 5 }}>
-        SKM. / A DIGITAL RESEARCH ATELIER
+        SAKSHAM KUMAR MISHRA / SKM.
       </div>
       <div
         style={{
@@ -30,8 +31,8 @@ export default function Image() {
         <span>The pursuit of</span>
         <span style={{ color: "#cf9874" }}>understanding.</span>
       </div>
-      <div style={{ fontSize: 23 }}>
-        SAKSHAM KUMAR MISHRA · RESEARCH / ENGINEERING
+      <div style={{ fontSize: 23, color: "#cf9874" }}>
+        QUANTITATIVE SYSTEMS · APPLIED ML · RESEARCH-DRIVEN SOFTWARE
       </div>
     </div>,
     size,

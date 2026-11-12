@@ -5,6 +5,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { allEntries } from "@/lib/content";
+import { pageMetadata } from "@/lib/site-metadata";
 import {
   Diagram,
   Note,
@@ -32,9 +33,7 @@ export async function generateMetadata({
   const e = await entryFor(params);
   return e
     ? {
-        title: e.title,
-        description: e.summary,
-        alternates: { canonical: `/${e.kind}/${e.slug}` },
+        ...pageMetadata(e.title, e.summary, `/${e.kind}/${e.slug}`),
         robots:
           e.status === "Verification pending"
             ? { index: false, follow: true }
