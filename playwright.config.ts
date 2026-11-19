@@ -24,6 +24,7 @@ export default defineConfig({
   ],
   webServer: {
     env: {
+      NODE_OPTIONS: "--max-old-space-size=4096",
       CONTACT_TRANSPORT: "mock",
       CONTACT_ALLOWED_ORIGINS: baseURL,
       RESEND_API_KEY: "",

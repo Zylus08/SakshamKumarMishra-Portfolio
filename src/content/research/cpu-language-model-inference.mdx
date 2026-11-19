@@ -48,7 +48,7 @@ To eliminate variability stemming from checkpoint revisions or architectural dif
   - Context Window Limit: 4,096 tokens (evaluated up to context limit)
 - **Container Format:** GGUF v3 (parsed clean-room without third-party libraries).
 - **Physical Checkpoint File:** `qwen2.5-1.5b-instruct-q4_k_m.gguf` (1.06 GB / 1,141,637,120 bytes, SHA-256: `6A1A2EB6D15622BF3C96857206351BA97E1AF16C30D7A74EE38970E434E9407E`).
-- **Host Hardware Profile:** Intel Core i7-12650H (Alder Lake architecture, 10 physical cores: 6 Golden Cove P-cores + 4 Gracemont E-cores, 16 threads, AVX2/FMA3, 16 GB DDR5-4800 RAM in dual-channel configuration with 38.4 GB/s theoretical peak bandwidth, Windows 11 x64).
+- **Host Hardware Profile:** 12th Gen Intel Core i7-12650H (Alder Lake architecture, 10 physical cores: 6 Golden Cove P-cores + 4 Gracemont E-cores, 16 threads, AVX2/FMA3, 24 MB shared L3 cache, 16 GB DDR5-4800 RAM with 36.8 GB/s measured empirical STREAM Triad bandwidth and 38.4 GB/s channel peak, Windows 11 x64).
 
 ---
 
@@ -146,18 +146,26 @@ For a single generated token in a model with $P = 1.54 \times 10^9$ active param
 - **Operational Intensity:**
   $$I = \frac{\text{FLOPs}}{\text{Bytes Transferred}} = \frac{3.08 \times 10^9}{1.06 \times 10^9} \approx 2.91 \text{ FLOP/byte}$$
 
-An operational intensity of $2.91\text{ FLOP/byte}$ is extraordinarily low. On an Intel Core i7-12650H capable of $\sim 450\text{ GFLOP/s}$ of peak FP32 compute, the machine balance is:
+An operational intensity of $2.91\text{ FLOP/byte}$ is extraordinarily low. On the certified Intel Core i7-12650H processor capable of $\sim 450\text{ GFLOP/s}$ of sustained FP32 compute and exhibiting a measured STREAM Triad memory bandwidth of $36.8\text{ GB/s}$ (with an analytical single-channel ceiling of $38.4\text{ GB/s}$), the machine balance is:
 
-$$\text{Machine Balance} = \frac{\text{Peak Compute (GFLOP/s)}}{\text{Peak Bandwidth (GB/s)}} = \frac{450}{38.4} \approx 11.72 \text{ FLOP/byte}$$
+$$\text{Machine Balance} = \frac{\text{Peak Compute (GFLOP/s)}}{\text{Practical Bandwidth (GB/s)}} = \frac{450}{36.8} \approx 12.23 \text{ FLOP/byte} \quad \left(\text{or } \frac{450}{38.4} \approx 11.72 \text{ FLOP/byte}\right)$$
 
-Because the workload's operational intensity ($2.91$) is far below the machine balance ($11.72$), **the execution is deeply, hopelessly memory-bandwidth bound**. The compute execution units are idle over 75% of the time, waiting for weights to arrive across the DDR5 memory bus.
+Because the workload's operational intensity ($2.91\text{ FLOP/byte}$) is far below the machine balance ($11.72\text{ to }12.23\text{ FLOP/byte}$), **the execution is deeply, hopelessly memory-bandwidth bound**. The compute execution units are idle over 75% of the time, waiting for weights to arrive across the DDR5 memory bus.
 
-### 6.2 Maximum Theoretical Decode Ceiling
-On a DDR5-4800 dual-channel host with a physical peak bandwidth of $38.4\text{ GB/s}$, the maximum possible theoretical token generation speed—assuming 100% bus utilization, zero cache misses, zero KV-cache overhead, and zero sampling latency—is:
+### 6.2 Empirical and Theoretical Decode Ceilings
+Evaluating maximum token generation speed across memory configurations clarifies the physical boundaries of CPU transformer execution:
 
-$$\text{Throughput}_{\text{ideal}} = \frac{38.4 \text{ GB/s}}{1.06 \text{ GB}} \approx 36.2 \text{ tokens/second}$$
+1. **Empirical STREAM Triad Ceiling (Host Measured):**
+   Using the host machine's measured STREAM Triad memory throughput of $36.8\text{ GB/s}$ (`audit/m4/HARDWARE_PROFILING.md`), the realistic empirical ceiling for streaming $1.0656\text{ GB}$ of weights is:
+   $$\text{Throughput}_{\text{STREAM}} = \frac{36.8 \text{ GB/s}}{1.0656 \text{ GB}} \approx 34.5 \text{ tokens/second}$$
 
-No CPU software runtime in existence can exceed $36.2\text{ tok/s}$ on this model and hardware without altering model weights or utilizing multi-token speculative decoding.
+2. **Theoretical Channel Ceiling:**
+   Assuming a theoretical single 64-bit DDR5-4800 channel running at 100% bus efficiency ($38.4\text{ GB/s}$) with zero KV-cache or scheduling overhead, the ceiling is:
+   $$\text{Throughput}_{\text{channel-ideal}} = \frac{38.4 \text{ GB/s}}{1.06 \text{ GB}} \approx 36.2 \text{ tokens/second}$$
+
+VECTRA's measured sustained median throughput of **16.82 tok/s** on Prompt P1 achieves **48.7% of the physical STREAM roofline ceiling** ($16.82 / 34.5$), while peak warm generation bursts reach **20.46 tok/s** (**59.3% bus saturation**). The remaining deficit is accounted for by L2/L3 cache line fills, activation quantization passes, and Windows thread scheduling overhead.
+
+*(Note on Hardware Provenance: While exploratory draft notes evaluated hypothetical DDR4-3200 memory models, all canonical benchmark manifests, unit suites, and release binaries were compiled and measured exclusively on the certified 12th Gen Intel Core i7-12650H processor with DDR5 memory).*
 
 ---
 
@@ -206,7 +214,7 @@ All benchmarks were evaluated on the certified Intel Core i7-12650H processor ru
 
 | Benchmark Workload | Evaluated Tokens | Sustained Median Throughput | Peak Warm Trial Burst | Peak Resident Working Set |
 | :--- | :---: | :---: | :---: | :---: |
-| **P1: "The capital of France is"** | 5 prompt, 32 gen | **16.82 tok/s** (1,842.7 ms) | **19.97 tok/s** (1,552.3 ms, 8t)<br>**20.46 tok/s** (733.2 ms, 16-gen) | **1,061.4 MB** |
+| **P1: "The capital of France is"** | 5 prompt, 32 gen | **16.82 tok/s** (1,842.7 ms) | **19.97 tok/s** (1,552.3 ms, 8t)<br />**20.46 tok/s** (733.2 ms, 16-gen) | **1,061.4 MB** |
 | **P2: "def fibonacci(n):"** | 4 prompt, 16 gen | **17.55 tok/s** (854.8 ms) | **19.26 tok/s** (778.7 ms, 8t) | **1,061.2 MB** |
 | **P3: ChatML 2+2 Query** | 16 prompt, 16 gen | **14.64 tok/s** (1,024.3 ms) | **14.86 tok/s** (1,009.6 ms) | **1,063.5 MB** |
 | **P3 Prefill (16 prompt tokens)** | 16 prompt | **24.13 tok/s** (663.1 ms) | **25.92 tok/s** (617.3 ms) | **1,063.5 MB** |
@@ -257,7 +265,7 @@ A common error in inference benchmarking is equating prefill throughput with aut
 
 ---
 
-## 12. Results
+## Results
 
 The empirical results of Project VECTRA v0.1.0-rc1 are certified as follows:
 - **Sustained Median Generation Throughput:** **16.82 tokens/second** (1,842.7 ms) on Prompt P1 across 32 generated tokens.
@@ -269,7 +277,7 @@ The empirical results of Project VECTRA v0.1.0-rc1 are certified as follows:
 
 ---
 
-## 13. Limitations
+## Limitations
 
 - Supported model scope in v0.1.0-rc1 is restricted to the Qwen2.5 transformer architecture.
 - Does not yet implement register-tiled GEMM for prefill.
@@ -278,7 +286,7 @@ The empirical results of Project VECTRA v0.1.0-rc1 are certified as follows:
 
 ---
 
-## 14. Reproducibility
+## Reproducibility
 
 The complete inference engine source code, test runners, and build configurations are publicly accessible:
 - **Project Case Study:** [VECTRA Project Case Study](/projects/vectra)

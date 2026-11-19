@@ -25,7 +25,7 @@ This overhead motivated the central research question of Project FORGE:
 
 The initial experimental hypothesis posited that fusing residual addition and ReLU, while evaluating the backward derivative condition directly within CPU vector registers (eliminating the boolean mask tensor entirely), would deliver a 2.0× to 2.5× acceleration in per-step training latency on consumer x86_64 processors.
 
-This paper presents the empirical findings of that investigation. In accordance with rigorous scientific integrity, we report a decisive **negative result**: the custom fused kernels were strictly slower than stock PyTorch eager execution. On a certified Intel Core i7-12650H benchmark workload, the fastest FORGE configuration achieved **249.43 ms per step**, compared to **212.11 ms per step** for stock PyTorch eager execution—an end-to-end throughput ratio of **0.8504× (17.59% slower)**.
+This paper presents the empirical findings of that investigation. In accordance with rigorous scientific integrity, we report a decisive **negative result**: the custom fused kernels were strictly slower than stock PyTorch eager execution. On a certified Intel Core i7-12650H benchmark workload, the fastest FORGE configuration achieved **249.43 ms per step**, compared to **212.11 ms per step** for stock PyTorch eager execution—an end-to-end throughput ratio of **0.8504×** (513.2 vs 603.5 samples/sec; FORGE achieved **85.04% of stock throughput**, representing **14.96% lower throughput** and **17.59% higher step latency**, with step time increasing from 212.11 ms to 249.43 ms, an execution-time ratio of 1.1759×).
 
 Below, we document the experimental architecture, the numerical verification methodology, the empirical performance measurements, and an Amdahl's Law forensic analysis that explains why micro-kernel acceleration failed to translate into macro-system speedups.
 
@@ -145,14 +145,14 @@ The table below presents the certified benchmark measurements across stock PyTor
 
 ### The Critical Findings:
 1. **The 2.5× Acceleration Goal Was NOT Achieved:** FORGE failed to accelerate end-to-end training.
-2. **FORGE is 17.59% Slower Than Stock:** Comparing the fastest valid FORGE configuration (`forge_nchw`: 249.43 ms) to the fastest certified stock competitor (`stock_nhwc`: 212.11 ms) demonstrates an end-to-end execution ratio of **0.8504×** (a slowdown of 17.59%).
+2. **FORGE Achieved 0.8504× Stock Throughput:** Comparing the fastest valid FORGE configuration (`forge_nchw`: 249.43 ms, 513.2 samples/sec) to the fastest certified stock competitor (`stock_nhwc`: 212.11 ms, 603.5 samples/sec) demonstrates an end-to-end throughput ratio of **0.8504×** (513.2 vs 603.5 samples/sec; FORGE achieved **85.04% of stock throughput**, representing **14.96% lower throughput** and **17.59% higher step latency**; step time increased by 17.59% from 212.11 ms to 249.43 ms).
 3. **Statistical Significance:** A two-sample Welch's t-test confirms that stock Channels-Last execution is statistically significantly faster than NCHW ($t = -5.1927, p = 0.0016$).
 
 ---
 
 ## 7. Forensic Analysis: Why Did Faster Kernels Make Training Slower?
 
-How could an AVX2 kernel that eliminates 2 MB of memory traffic and executes with bitwise parity result in a 17.59% end-to-end slowdown?
+How could an AVX2 kernel that eliminates 2 MB of memory traffic and executes with bitwise parity result in 17.59% higher step latency (and 14.96% lower throughput)?
 
 To diagnose this apparent paradox, detailed operator-level execution tracing was performed using the PyTorch Profiler. The results revealed two compounding architectural bottlenecks: **Amdahl's Law** and **Memory Layout Contiguity Thrashing**.
 
@@ -222,19 +222,19 @@ The empirical failure of Project FORGE forces an important revision of systems r
 
 ---
 
-## 10. Results
+## Results
 
 The empirical results of Project FORGE v0.1.0-rc1 are certified as follows:
 - **Target Status:** **2.5× acceleration NOT ACHIEVED**.
 - **Stock Baseline Competitor:** 212.11 ms/step (603.5 samples/sec, `torch-eager` NHWC, 10 threads).
 - **Fastest FORGE Configuration:** 249.43 ms/step (513.2 samples/sec, `forge` NCHW, 10 threads).
-- **End-to-End Speedup Ratio:** **0.8504× of stock performance (17.59% slower)**.
+- **End-to-End Throughput:** **0.8504× stock throughput** (513.2 vs 603.5 samples/sec, representing **14.96% lower throughput** and **17.59% higher step latency**; step time increased from 212.11 ms to 249.43 ms).
 - **Amdahl's Law Breakdown:** Convolutions (49.43%) + BatchNorm (33.05%) = **82.48%** of runtime; Residual Add+ReLU = **8.80%**; theoretical speedup ceiling = **1.0965×**.
 - **Numerical Parity:** **29/29 regression tests passed** with exact bitwise parity ($L_\infty = 0.0$ across 3,674,112 elements).
 
 ---
 
-## 11. Limitations
+## Limitations
 
 - Fused kernels operate exclusively on ResNet-20 architectures on x86_64 CPUs with AVX2.
 - Convolutions and batch normalization remain unaccelerated PyTorch calls.
@@ -243,7 +243,7 @@ The empirical results of Project FORGE v0.1.0-rc1 are certified as follows:
 
 ---
 
-## 12. Reproducibility
+## Reproducibility
 
 The complete source code, native C++ kernels, verification tests, and canonical benchmark harnesses are publicly available:
 - **Project Case Study:** [FORGE Project Case Study](/projects/forge)

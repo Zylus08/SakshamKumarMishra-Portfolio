@@ -40,3 +40,25 @@ assert.ok(!diagramFixture.compiledSource.includes("untrustedExpression"));
 console.log(
   "Literal diagram labels survive compilation; JavaScript expressions remain blocked.",
 );
+
+// Regression fixture: verify that unclosed <br> tag is strictly rejected by MDX compiler
+let caughtUnclosedBr = false;
+try {
+  await serialize("Table cell<br>new line");
+} catch (err) {
+  assert.ok(err.message.includes("Expected a closing tag for `<br>`"));
+  caughtUnclosedBr = true;
+}
+assert.ok(
+  caughtUnclosedBr,
+  "Regression fixture failed: unclosed <br> was not rejected by serialize()",
+);
+
+// Regression fixture: verify that valid self-closing <br /> compiles cleanly in table context
+const tableFixture = await serialize(
+  "| Header 1 | Header 2 |\n| :--- | :--- |\n| Cell 1 | First line<br />Second line |",
+);
+assert.ok(tableFixture.compiledSource.includes("Second line"));
+console.log(
+  "Regression fixture: unclosed <br> rejection and valid <br /> table compilation verified.",
+);

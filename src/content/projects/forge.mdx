@@ -15,7 +15,7 @@ evidence: {"repository": "Zylus08/FORGE", "commit": "cffdb5c2e737987af1251f7e8e9
 
 FORGE is an experimental research framework designed to investigate CPU operator fusion and native AVX2 SIMD execution acceleration for deep neural network training in PyTorch. Targeting a frozen ResNet-20 architecture on CIFAR-10, FORGE implements native C++20 kernels for fused residual addition and ReLU activation, featuring a zero-mask backpropagation architecture that eliminates 2 MB of intermediate DRAM traffic per stage by evaluating derivative conditions directly within vector registers.
 
-In accordance with strict scientific integrity, FORGE documents a critical negative result: the original 2.5× acceleration target was not achieved. The certified stock PyTorch eager baseline (using Channels-Last `NHWC` memory layout at 10 physical threads) achieves 212.11 ms per step, whereas the fastest valid FORGE configuration (using Contiguous `NCHW` layout at 10 physical threads) achieves 249.43 ms per step, yielding an end-to-end execution ratio of 0.8504× (17.59% slower than stock PyTorch). Detailed profiling reveals an insurmountable Amdahl's Law bottleneck: 2D convolutions (49.43%) and batch normalization (33.05%) account for 82.48% of total execution time, establishing a theoretical maximum speedup of 1.0965× for isolating Add+ReLU fusion. This case study details the engineering implementation, numerical parity verification, and performance forensics of FORGE v0.1.0-rc1 at commit `cffdb5c2e737`.
+In accordance with strict scientific integrity, FORGE documents a critical negative result: the original 2.5× acceleration target was not achieved. The certified stock PyTorch eager baseline (using Channels-Last `NHWC` memory layout at 10 physical threads) achieves 212.11 ms per step (603.5 samples/sec), whereas the fastest valid FORGE configuration (using Contiguous `NCHW` layout at 10 physical threads) achieves 249.43 ms per step (513.2 samples/sec), yielding an end-to-end throughput ratio of 0.8504× (513.2 vs 603.5 samples/sec, representing 0.8504× stock throughput, 14.96% lower throughput, and 17.59% higher step latency). Detailed profiling reveals an insurmountable Amdahl's Law bottleneck: 2D convolutions (49.43%) and batch normalization (33.05%) account for 82.48% of total execution time, establishing a theoretical maximum speedup of 1.0965× for isolating Add+ReLU fusion. This case study details the engineering implementation, numerical parity verification, and performance forensics of FORGE v0.1.0-rc1 at commit `cffdb5c2e737`.
 
 ## Problem and Motivation
 
@@ -80,7 +80,7 @@ All configurations were evaluated on an Intel Core i7-12650H processor (10 physi
 | **`forge_nchw`** | `forge` | **NCHW** | **10** | **249.43 ms** | **[236.97, 261.89] ms** | **513.2** | **0.8504×** |
 | `forge_nhwc` | `forge` | NHWC | 10 | 272.62 ms | [185.50, 359.75] ms | 469.8 | 0.7780× |
 
-FORGE's fastest configuration (`forge_nchw`) achieved **0.8504× of stock performance** (i.e., **17.59% slower** than stock PyTorch eager).
+FORGE's fastest configuration (`forge_nchw`) achieved **0.8504× stock throughput** (513.2 vs 603.5 samples/sec, representing **14.96% lower throughput** and **17.59% higher step latency** relative to stock PyTorch eager).
 
 ### Amdahl's Law Diagnostic Breakdown
 To understand this slowdown, detailed operator-level execution tracing was performed. The execution profile revealed the following distribution:
@@ -122,7 +122,7 @@ Key findings from the audited v0.1.0-rc1 milestone:
 - **Target Status:** **2.5× acceleration NOT ACHIEVED**.
 - **Certified Stock Baseline:** 212.11 ms/step (603.5 samples/sec, `torch-eager` NHWC, 10 threads).
 - **Fastest FORGE Configuration:** 249.43 ms/step (513.2 samples/sec, `forge` NCHW, 10 threads).
-- **End-to-End Speedup:** **0.8504× of stock performance** (17.59% slower).
+- **End-to-End Throughput:** **0.8504× stock throughput** (513.2 vs 603.5 samples/sec, representing 14.96% lower throughput and 17.59% higher step latency).
 - **Amdahl's Law Upper Bound:** 82.48% of runtime spent in Conv2D and BatchNorm; theoretical maximum speedup for Add+ReLU fusion is **1.0965×**.
 - **Numerical Correctness:** **29/29 tests passed** with bitwise parity ($L_\infty = 0.0$).
 

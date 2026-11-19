@@ -64,7 +64,7 @@ test("search, category, view and research status controls", async ({
   await page
     .getByRole("button", { name: "Systems & Infrastructure", exact: true })
     .click();
-  await expect(page.locator(".entry")).toHaveCount(3);
+  await expect(page.locator(".entry")).toHaveCount(6);
   await expect(
     page.locator(".entry").filter({ hasText: "Kamish" }),
   ).toHaveCount(1);
@@ -80,7 +80,7 @@ test("search, category, view and research status controls", async ({
     .fill("no matching project");
   await expect(page.getByText("No entries here. Yet.")).toBeVisible();
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await expect(page.locator(".entry")).toHaveCount(24);
+  await expect(page.locator(".entry")).toHaveCount(28);
   await page.goto("/research");
   await page
     .getByLabel("Filter research status")
@@ -133,9 +133,9 @@ test("theme persists and reduced motion disables transitions", async ({
     .analyze();
   expect(scan.violations).toEqual([]);
 });
-test("metadata, 404 and writing empty state", async ({ page, request }) => {
+test("metadata, 404 and writing directory", async ({ page, request }) => {
   await page.goto("/writing");
-  await expect(page.getByText("No entries here. Yet.")).toBeVisible();
+  await expect(page.locator(".entry")).toHaveCount(2);
   await expect(page.locator("link[rel=canonical]")).toHaveAttribute(
     "href",
     "https://www.sakshamkumarmishra.cv/writing",

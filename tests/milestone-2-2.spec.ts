@@ -90,8 +90,12 @@ test("authentic photos, category covers and stable responsive frames", async ({
       await expect(
         page.getByRole("button", { name: cover.category, exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
-      await expect(page.locator(".entry")).toHaveCount(0);
-      await expect(page.getByText("No entries here. Yet.")).toBeVisible();
+      if (cover.category === "Engineering") {
+        await expect(page.locator(".entry")).toHaveCount(2);
+      } else {
+        await expect(page.locator(".entry")).toHaveCount(0);
+        await expect(page.getByText("No entries here. Yet.")).toBeVisible();
+      }
     }
     expect(
       await page.evaluate(

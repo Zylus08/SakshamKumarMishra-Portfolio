@@ -26,6 +26,12 @@ for (const entry of entries) {
   assert.match(entry.slug, /^[a-z0-9-]+$/);
   if (entry.kind !== "writing") assert.ok(entry.body.includes("## Results"));
   assert.ok(!entry.paper || entry.status !== "Verification pending");
+  const unclosedVoid = entry.body.match(/<(br|hr|img|input)(?![^>]*\/>)[^>]*>/i);
+  assert.equal(
+    unclosedVoid,
+    null,
+    `Entry ${entry.kind}/${entry.slug} contains unclosed void tag: "${unclosedVoid?.[0]}". In MDX, void elements must be self-closing (e.g. <br />).`,
+  );
 }
 assert.equal(
   schema.safeParse({ title: "Invalid", status: "Award winning" }).success,

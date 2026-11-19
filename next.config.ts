@@ -3,7 +3,13 @@ const config: NextConfig = {
   poweredByHeader: false,
   // Opt-in for memory-constrained local builds; deployed defaults are unchanged.
   experimental:
-    process.env.SKM_LOW_MEMORY_BUILD === "1" ? { cpus: 2 } : undefined,
+    process.env.SKM_LOW_MEMORY_BUILD === "1"
+      ? {
+          cpus: 1,
+          webpackMemoryOptimizations: true,
+          parallelServerBuildTraces: false,
+        }
+      : undefined,
   async headers() {
     return [
       {

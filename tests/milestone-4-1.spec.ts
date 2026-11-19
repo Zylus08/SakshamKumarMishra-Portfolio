@@ -80,7 +80,7 @@ test("career selections expose matching cases and authentic documents", async ({
       ).toHaveAttribute("aria-pressed", "true");
       if (pathway.id === "quant")
         await expect(page.locator(".entry")).toHaveCount(7);
-    } else await expect(page.locator(".entry")).toHaveCount(5);
+    } else await expect(page.locator(".entry")).toHaveCount(7);
     await page.goto("/");
   }
 });
@@ -117,14 +117,14 @@ test("pathway keyboard navigation and archive history preserve filter behavior",
   await expect(page.locator(".entry")).toHaveCount(1);
   await page.getByLabel("Search projects").fill("");
   await page.getByRole("button", { name: "All", exact: true }).click();
-  await expect(page.locator(".entry")).toHaveCount(24);
+  await expect(page.locator(".entry")).toHaveCount(28);
   await expect(page).toHaveURL(/source=career/);
   await page.goBack();
   await expect(page.locator(".entry")).toHaveCount(7);
   await page.reload();
   await expect(page.locator(".entry")).toHaveCount(7);
   await page.goto("/projects?category=not-a-category");
-  await expect(page.locator(".entry")).toHaveCount(24);
+  await expect(page.locator(".entry")).toHaveCount(28);
 });
 
 test("career composition is accessible in both themes at narrow and wide sizes", async ({

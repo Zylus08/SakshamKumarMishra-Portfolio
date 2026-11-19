@@ -92,3 +92,15 @@ test("external metadata rejects credentials and non-HTTPS URLs", () => {
     true,
   );
 });
+
+test("all MDX entries contain well-formed JSX void tags without unclosed HTML elements", () => {
+  const entries = allEntries();
+  for (const entry of entries) {
+    const unclosedVoid = entry.body.match(/<(br|hr|img|input)(?![^>]*\/>)[^>]*>/i);
+    assert.equal(
+      unclosedVoid,
+      null,
+      `Unclosed void HTML tag found in ${entry.kind}/${entry.slug}: "${unclosedVoid?.[0]}". In MDX, void elements must be self-closing (e.g. <br />).`,
+    );
+  }
+});
