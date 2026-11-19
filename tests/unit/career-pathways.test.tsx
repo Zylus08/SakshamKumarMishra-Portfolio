@@ -62,5 +62,5 @@ test("four career lenses resolve three evidenced articles and the matching authe
         ),
       );
   }
-  assert.equal(getEntries("projects").length, 24);
+  assert.equal(getEntries("projects").length, 28);
 });

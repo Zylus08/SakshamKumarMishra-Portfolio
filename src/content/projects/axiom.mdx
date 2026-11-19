@@ -1,0 +1,146 @@
+---
+title: "AXIOM"
+summary: "An analytical C++20 SQL query engine built from first principles, featuring batch-oriented physical execution, Grace Hash Join, external merge sort, and out-of-core spill management."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["C++20", "Analytical SQL", "External Memory", "Grace Hash Join", "Query Optimizer", "DuckDB Differential"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/Axiom"
+evidence: {"repository": "Zylus08/Axiom", "commit": "e27db36e8c6061317656665fcecd46d71803970d", "reviewed": "2026-11-19"}
+---
+
+## Abstract
+
+AXIOM is an analytical query engine implemented in C++20 without embedding SQLite, DuckDB, PostgreSQL, third-party SQL parser libraries, or execution frameworks. It reads external CSV datasets, parses a documented SQL subset, builds and optimizes logical query plans, and executes physical operators using batch-oriented record vectors. When queries process volumes exceeding configured operator memory boundaries, AXIOM transitions into external-memory processing via block Grace Hash Joins, partitioned external aggregation, and hierarchical multi-pass merge sorting.
+
+This case study examines the architecture, memory-budget management, disk-spilling protocols, and differential verification of AXIOM v0.1.0 at commit `e27db36e8c60`. The engine demonstrates that external-memory algorithms can process multi-gigabyte datasets under strict resident memory budgets, while highlighting the microarchitectural overheads of text parsing and single-threaded execution.
+
+## Problem and Motivation
+
+Relational query engines are among the most intricate systems in software engineering, requiring the harmonious operation of formal grammar parsers, semantic binders, query plan optimizers, and cache-conscious execution engines. Modern applications routinely embed mature database engines such as SQLite or DuckDB. However, embedding existing libraries obscures the operational mechanics of query execution:
+- How are AST expressions bound to typed column catalogs?
+- When does an in-memory hash table exhaust its working set and how can an operator gracefully spill intermediate batches to NVMe or SSD storage?
+- How does an external merge sort bound its operating memory and open file descriptors during large-scale fan-in passes?
+- How does SQL three-valued logic ($TRUE$, $FALSE$, $UNKNOWN$) propagate through vector expressions without incurring branch mispredictions?
+
+AXIOM was designed as a first-principles investigation into these systems questions. The goal was not to replace production databases, but to construct a verifiable, inspectable, and out-of-core capable analytical engine from raw C++20 primitives.
+
+## System Architecture
+
+AXIOM processes queries through a six-stage compilation and execution pipeline:
+
+<Diagram steps="Lexer & Pratt Parser|Semantic Binder & Logical Plan|Rule Optimizer|Physical Batch Execution|AXMB Disk Spill Manager" caption="AXIOM query compilation, rule optimization, batch-oriented physical execution, and out-of-core spill management." />
+
+1. **SQL Frontend:** A custom lexer tracks line and column coordinates, emitting tokens to a recursive-descent statement parser and Pratt-style expression parser.
+2. **Semantic Binder:** Resolves table identifiers against registered CSV schemas, binds column names to zero-indexed projection indices, validates data types, and enforces aggregate grouping rules.
+3. **Logical Planning:** Generates an abstract operator tree comprising `LogicalScan`, `LogicalFilter`, `LogicalProject`, `LogicalJoin`, `LogicalAggregate`, `LogicalSort`, and `LogicalLimit`.
+4. **Rule-Based Optimizer:** Applies heuristic transformations including conjunctive predicate pushdown (moving filters below joins and scans), Top-K heap pushdown into sort nodes, and join-side cardinality selection.
+5. **Physical Plan & Batch Execution:** Translates logical nodes into pull-based physical operators operating on homogeneous `RecordBatch` chunks (default 4,096 rows per batch).
+6. **Query Memory & Spill Manager:** Enforces operator-level memory budgets, tracks allocation telemetry, serializes spilled partitions in AXMB v1 binary format, and executes hierarchical external merge passes.
+
+## Out-of-Core Processing and Memory Budgeting
+
+Analytical queries frequently process datasets that exceed available physical RAM. AXIOM incorporates three distinct out-of-core algorithms:
+
+### 1. Block Grace Hash Join
+When building an in-memory hash table on the inner relation exceeds the operator's configured memory budget, AXIOM transitions to Grace Hash Join:
+- Both the build and probe relations are partitioned into $K$ on-disk bucket files using a hash function $h_1(\text{key}) \pmod K$.
+- If an individual partition fits in memory, AXIOM executes an in-memory hash join.
+- If a partition still exceeds memory, AXIOM recursively re-hashes the partition with a secondary hash function $h_2$, or executes a block-nested loop with probe rewinding.
+
+### 2. Partitioned External Aggregation
+Grouping operations with high cardinality keys hash incoming tuples into disk-backed spill partitions. Each partition accumulates local partial aggregates (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`). When all input batches are consumed, individual partitions are reloaded into memory sequentially and reduced to final output rows.
+
+### 3. Hierarchical External Merge Sort
+Sorting datasets larger than memory requires external sorting:
+1. Batches are accumulated in memory until the sort memory budget is reached.
+2. Batches are sorted in-place and flushed to disk as sorted runs formatted as AXMB binary batches.
+3. Multi-pass merge: Rather than opening hundreds of run files simultaneously (which risks OS file descriptor exhaustion), AXIOM merges runs hierarchically using a bounded fan-in priority queue (typically 16 to 32 runs per merge pass) until a single sorted run remains.
+
+### The AXMB v1 Temporary Storage Protocol
+Intermediate spilled data is written in AXIOM's custom binary container format (AXMB v1):
+- Compact binary layout eliminating CSV re-parsing overhead.
+- Bit-packed NULL bitmaps for zero-overhead nullability representation.
+- Non-cryptographic checksums (xxHash-based) validating disk batch integrity against storage corruption.
+- RAII disk quota trackers that abort queries exceeding `--max-temp-disk` and automatically purge temporary files on query termination.
+
+## SQL Semantics and Three-Valued Logic
+
+AXIOM implements strict SQL ANSI compliance for three-valued boolean logic and NULL semantics across its expression evaluator:
+- Supported data types: `BIGINT`, `DOUBLE`, `VARCHAR`, `BOOLEAN`, and `NULL`.
+- Three-valued logic truth tables: `NULL AND FALSE` evaluates to `FALSE`, while `NULL OR TRUE` evaluates to `TRUE`.
+- Null ordering semantics: AXIOM supports explicit `NULLS FIRST` and `NULLS LAST` specifications in `ORDER BY` clauses, ensuring deterministic sorting parity with ANSI SQL standards.
+
+```text
+AXIOM SQL Evaluation Contract:
+  Input: SELECT city, AVG(age) FROM citizens WHERE status = 'active' GROUP BY city ORDER BY AVG(age) DESC;
+  1. Parser generates AST with Pratt expression binding.
+  2. Binder validates that 'city' is in GROUP BY and 'age' is numeric.
+  3. Optimizer pushes (status = 'active') directly into CSV Scan filter.
+  4. Physical HashAggregate groups by 'city', accumulating sum and count.
+  5. Top-K external sort orders groups by computed average.
+```
+
+## Engineering Decisions and Tradeoffs
+
+1. **Pull-Based Batch Execution vs Push-Based Vectorization:** AXIOM adopts a volcano-style iterator model adapted for vectors of rows (`RecordBatch`). While push-based compilation (e.g., hyper-style LLVM code generation) offers superior instruction locality, pull-based vectorization vastly simplifies operator cancellation, memory budget interrupts, and spill transitions.
+2. **Operator Memory Budgets vs Process Working Set:** Memory limits in AXIOM (`--memory-limit`) are enforced on engine-managed query allocations, not the operating system's total process working set (RSS). Early release testing revealed that unaccounted merge buffers caused OS working set bloat; the RC1.1 audit redesigned buffer pooling, reducing peak working set from 150.86 MB to 17.68 MB (-88.3%).
+3. **Single-Threaded Execution:** In v0.1.0, execution is strictly single-threaded to establish an unassailable baseline of algorithmic correctness and out-of-core determinism before introducing morsel-driven multi-threading complexities.
+
+## Testing, Adversarial Stress, and Differential Validation
+
+AXIOM's verification framework incorporates three layers of testing:
+1. **Unit & Integration Suite:** 644 automated checks covering lexer tokenization, AST generation, semantic errors, operator execution, and spill file lifecycles.
+2. **Adversarial & Failure Invariant Tests:** Verifies engine behavior under corrupted CSV data, unquoted delimiter escapes, zero-byte inputs, disk full simulation, and operator memory starvation down to 1 MB.
+3. **Differential SQL Testing Against DuckDB 2.0.0:** A Python-driven differential test harness executes identical SQL queries against both AXIOM and DuckDB on identical CSV datasets. Across 120 differential test queries covering nested expressions, null comparisons, aggregations, and inner joins, AXIOM achieved 100% byte-for-byte result parity.
+
+## Results
+
+The performance and verification figures below represent audited results from the v0.1.0 release and RC1.1 milestone artifacts:
+- **Maximum Input Volume:** 5.37 GB / 164,422,022 rows successfully processed in analytical pipelines.
+- **Large-Scale External Spill:** 3.74 GB cumulative temporary data successfully spilled and aggregated under tight memory limits.
+- **Memory Forensics (RC1.1 Audit):** External sort working set reduced from **150.86 MB to 17.68 MB** (**88.3% lower peak working set**), resolving buffer accumulation during hierarchical merge passes.
+- **Parsing Throughput:** Sustained ~1.05 million rows/second on synthetic integer datasets in Release configuration.
+- **Verification Coverage:** **644/644 checks passed** across unit, integration, adversarial, and CLI smoke test suites.
+- **Differential Validation:** **120/120 test suites passed** with byte-for-byte equivalence against DuckDB 2.0.0.
+
+## Limitations
+
+AXIOM is an experimental, read-only analytical query engine, not a general-purpose transactional database:
+- **No Data Mutation:** Does not support `INSERT`, `UPDATE`, `DELETE`, or `CREATE TABLE` transactions; data is ingested exclusively from external read-only CSV files.
+- **No ACID or Transactions:** Contains no write-ahead log (WAL), concurrency control, or multi-version concurrency control (MVCC).
+- **SQL Language Subsets:** v0.1.0 does not support outer joins (`LEFT`, `RIGHT`, `FULL`), subqueries, common table expressions (`WITH`), window functions (`OVER`), set operations (`UNION`, `INTERSECT`), or `DISTINCT` aggregates.
+- **Execution Concurrency:** Execution is currently single-threaded; queries cannot utilize multiple CPU cores for parallel hash joins or parallel scans.
+- **CSV Ingestion Bottlenecks:** Reading raw text CSV files incurs significant string parsing and delimiter scanning overhead compared to binary columnar formats (e.g., Parquet).
+
+## Reproducibility
+
+The complete engine source code, build scripts, test suites, and audit ledgers are publicly available:
+- **Repository:** [`Zylus08/Axiom`](https://github.com/Zylus08/Axiom)
+- **Commit:** [`e27db36e8c6061317656665fcecd46d71803970d`](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/README.md)
+- **Release Tag:** `v0.1.0`
+- **Build Environment:** Windows 11 x64, Visual Studio 2022 C++ Build Tools (MSVC v143), CMake 3.25+, Ninja.
+- **Verification Commands:**
+  ```powershell
+  # Build and run CTest suite
+  .\scripts\build.ps1 -Config Release -Test
+
+  # Run differential DuckDB comparison
+  python tests/differential/test_differential.py
+  ```
+
+## Future Work
+
+1. **Parallel Morsel-Driven Execution:** Partition input data into dynamic morsels processed across thread pools using work-stealing schedulers.
+2. **Native Columnar Storage:** Replace CSV ingestion with a custom binary columnar format with dictionary and bit-packing compression.
+3. **SIMD Vectorized Expression Evaluation:** Implement AVX2/AVX-512 kernels for filter evaluation and arithmetic projections.
+4. **Cost-Based Query Optimization:** Collect hyperloglog cardinality sketches and equidepth histograms to select optimal join orderings.
+
+## References and Evidence
+
+- [AXIOM Architecture Guide](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/docs/ARCHITECTURE.md)
+- [AXIOM SQL Support Specification](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/docs/SQL_SUPPORT.md)
+- [AXIOM Benchmark Corrections and Forensics](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/rc1_1/BENCHMARK_CORRECTIONS.md)
+- [AXIOM Memory Discrepancy Investigation](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/rc1_1/MEMORY_DISCREPANCY.md)

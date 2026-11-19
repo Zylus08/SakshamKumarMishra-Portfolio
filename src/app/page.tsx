@@ -9,6 +9,7 @@ import { photographs } from "@/lib/assets";
 import { getEntries } from "@/lib/content";
 import { homepageProjects, resolvedPathways } from "@/lib/career-content";
 import { CareerPathways } from "@/components/career-pathways";
+import { FirstPrinciplesCollection } from "@/components/first-principles-collection";
 import { JourneyTimeline } from "@/components/journey-timeline";
 import { ExperienceStrip } from "@/components/experience-strip";
 import { proofFor, researchPreviews } from "@/lib/homepage-evidence";
@@ -225,6 +226,7 @@ export default function Home() {
             </Link>
           ))}
         </div>
+        <FirstPrinciplesCollection />
       </section>
       <JourneyTimeline />
       <section className="section personal" data-reveal>

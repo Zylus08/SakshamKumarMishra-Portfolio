@@ -2353,3 +2353,166 @@ td {
     font-size: 12px;
   }
 }
+
+/* Special Editorial Collection: Built from First Principles */
+.first-principles-collection {
+  margin: 72px 0 0;
+  padding: 48px 0 16px;
+  border-top: 1px solid var(--line);
+}
+.first-principles-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.first-principles-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0 20px;
+}
+.first-principles-title-row h3 {
+  font-size: clamp(26px, 3.2vw, 40px);
+  line-height: 1.2;
+}
+.first-principles-summary {
+  max-width: 720px;
+  font-size: 14.5px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.first-principles-pipeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 20px 0 12px;
+  padding: 12px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.pipeline-node {
+  color: var(--ink);
+  font-size: 11px;
+}
+.pipeline-node b {
+  color: var(--accent);
+  margin-right: 6px;
+}
+.pipeline-arrow {
+  color: var(--technical);
+  font-size: 12px;
+}
+.first-principles-disclaimer {
+  color: var(--muted);
+  margin: 0 0 32px;
+  max-width: 760px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.first-principles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.first-principles-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 26px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.first-principles-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.fp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.fp-id {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 11px;
+}
+.fp-layer {
+  color: var(--technical);
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.fp-domain {
+  color: var(--muted);
+  font-size: 10px;
+}
+.fp-card-body h4 {
+  font-size: 24px;
+  font-family: var(--font-serif), serif;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+.fp-card-body p {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.fp-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.fp-metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.fp-metric-value {
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.fp-metric-label {
+  color: var(--muted);
+  margin-top: 3px;
+  font-size: 9px;
+}
+.fp-proof-point {
+  margin-bottom: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.fp-proof-point span {
+  color: var(--accent);
+  font-weight: 600;
+}
+.fp-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+@media (max-width: 900px) {
+  .first-principles-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+

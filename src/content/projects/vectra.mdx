@@ -1,0 +1,158 @@
+---
+title: "VECTRA"
+summary: "A clean-room C++20 CPU inference runtime for quantized transformer LLMs with zero dependencies on llama.cpp, featuring AVX2 INT8 GEMV, GGUF v3 parsing, and DDR5 memory streaming."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["C++20", "LLM Inference", "Clean-Room Runtime", "AVX2 SIMD", "GGUF v3", "Quantization"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/VECTRA"
+evidence: {"repository": "Zylus08/VECTRA", "commit": "fe72774be725a0a82ad74a38d34e571ef9d7e0cd", "reviewed": "2026-11-19"}
+---
+
+## Abstract
+
+Project VECTRA is an original, clean-room C++20 CPU inference runtime engineered to execute quantized Large Language Models (LLMs) on consumer x86_64 processors with maximum microarchitectural efficiency. Built with zero runtime dependencies on `llama.cpp`, GGML, ONNX Runtime, PyTorch, or LibTorch, VECTRA implements every layer of the inference stack from scratch: Win32 memory-mapped GGUF v3 file parsing, Byte-Pair Encoding (BPE) tokenization, block-quantized matrix-vector multiplication (`Q4_K` and `Q6_K` with dynamic `Q8_K_256` activation quantization), Grouped-Query Attention (GQA), Rotary Position Embeddings (RoPE), SwiGLU non-linearities, and multi-threaded work scheduling.
+
+Evaluated on an Intel Core i7-12650H laptop processor running `Qwen2.5-1.5B-Instruct` (1.06 GB GGUF checkpoint), VECTRA achieves a sustained median autoregressive generation throughput of 16.82 tokens/second (with peak warm bursts reaching 20.46 tokens/second) while maintaining a strict resident memory working set of 1,061.4 MB—saving 111 MB of RAM compared to `llama.cpp` through a zero-graph pre-allocated workspace. This case study analyzes the systems architecture, quantization mechanics, SIMD kernels, and empirical performance profile of VECTRA v0.1.0-rc1 at commit `fe72774be725`.
+
+## Problem and Motivation
+
+Deploying Large Language Models locally on consumer hardware presents severe computational and memory challenges. While modern consumer GPUs boast massive memory bandwidth (e.g., 300–1000+ GB/s), typical consumer laptops rely on central processors coupled to dual-channel DDR4 or DDR5 main memory (delivering 38–70 GB/s peak bandwidth). In autoregressive language generation, every newly generated token requires streaming the entire multi-gigabyte weight matrix across the memory bus:
+
+$$\text{Generation Throughput} \approx \frac{\text{Memory Bandwidth (GB/s)}}{\text{Model Parameter Footprint (GB)}}$$
+
+Most existing local LLM frameworks rely on Georgi Gerganov's widely adopted `llama.cpp` runtime. While effective, relying on third-party monolithic codebases introduces significant complexity, dynamic computation graph overheads, and opaque memory allocations. VECTRA was built from first principles to investigate:
+- What is the theoretical minimum memory footprint required to serve a 1.5-billion parameter transformer model on a modern CPU?
+- How close to physical DDR5 bandwidth limits can a clean-room C++20 AVX2 kernel stream quantized matrix-vector contractions?
+- How much overhead is introduced by dynamic execution graphs, and can a zero-graph architecture with pre-allocated scratch buffers outperform general-purpose runtimes?
+
+## System Architecture
+
+VECTRA executes language models through a streamlined five-stage pipeline:
+
+<Diagram steps="GGUF Memory Mapping|BPE Tokenizer|LayerScratch Workspace|Batched GEMV-N Prefill|Autoregressive Decode Loop" caption="VECTRA clean-room C++20 inference runtime and memory-mapped execution pipeline." />
+
+1. **Host Memory Mapping:** Uses Win32 `CreateFileMapping` and `MapViewOfFile` to map the 1.06 GB GGUF v3 file directly into the virtual address space. Model weights remain on disk and are paged into memory on-demand by the OS kernel, enabling instantaneous model loading without read buffers.
+2. **BPE Tokenization Engine:** A clean-room Byte-Pair Encoding tokenizer parses input text, manages special ChatML tokens (`<|im_start|>`, `<|im_end|>`), and matches Hugging Face tokenization byte-for-byte across English, multilingual text, and code.
+3. **Zero-Graph Workspace (`LayerScratch`):** Rather than constructing a dynamic computational graph (like ONNX or GGML), VECTRA pre-allocates an in-place `LayerScratch` workspace. Activations are computed in-place, eliminating dynamic allocations during token generation.
+4. **Batched INT8 GEMV-N Prefill Engine:** Quantizes all prompt activations into `BlockQ8_K_256` blocks simultaneously. Quantized weight matrices are streamed across the memory bus only once across multiple tokens, achieving up to 25.92 tokens/second prefill throughput.
+5. **Autoregressive Decode Loop:** Employs multi-threaded AVX2 kernels for fused Query-Key-Value projection, GQA attention, RoPE rotations, fused Gate-Up SwiGLU projections, and vectorized LM-head projection.
+
+## Quantization Math and AVX2 Micro-Kernels
+
+VECTRA supports modern k-quants block formats:
+- **`Q4_K` Format:** 4-bit block quantization with 6-bit scales and minimums across 256 elements. Weights are packed into 144 bytes per 256-element super-block (4.5 bits/weight).
+- **`Q6_K` Format:** 6-bit block quantization with 8-bit scales across 256 elements (210 bytes per 256-element super-block).
+- **`Q8_K_256` Format:** Dynamic signed 8-bit activation quantization ($[-127, 127]$) computed on the fly for incoming layer vectors.
+
+### SIMD Dot-Product Execution
+Matrix-vector multiplication contracts dynamic `Q8_K_256` activations with `Q4_K` weights using AVX2 integer instructions:
+
+```text
+AVX2 Integer Dot-Product Pipeline (16 MACs / cycle):
+  1. Unpack 4-bit nibbles into 8-bit integers via _mm256_and_si256 and _mm256_srli_epi16.
+  2. Compute signed-by-unsigned dot products using _mm256_maddubs_epi16.
+  3. Accumulate intermediate 16-bit products into 32-bit sums via _mm256_madd_epi16.
+  4. Scale accumulated sums by 6-bit block scales and minimums using FMA (_mm256_fmadd_ps).
+```
+
+### Multi-Projection SIMD Fusion
+In standard transformer implementations, computing Query ($Q$), Key ($K$), and Value ($V$) projections involves three distinct matrix-vector calls, each incurring thread synchronization barriers. VECTRA implements **fused multi-projections**:
+- `matvec_q4_k_q8_qkv`: Evaluates $Q$, $K$, and $V$ in a single multi-threaded pass across the weight matrix.
+- `matvec_q4_k_q8_2x`: Evaluates Gate and Up projections in SwiGLU simultaneously.
+
+This fusion eliminates **84 thread synchronization barriers** per generated token (3 barriers $\times$ 28 layers).
+
+### Vectorized LM-Head Projection
+The final language model projection evaluates logits across the entire vocabulary ($151,936 \times 1,536$ dimensions). VECTRA uses AVX2 horizontal addition intrinsics (`_mm256_hadd_epi32`) and interleaved scale sums to stream the vocabulary projection in **5.7 ms** at **33.8 GB/s**—utilizing **88% of physical DDR5 peak bandwidth** on the host machine.
+
+## Memory Footprint and Zero-Graph Architecture
+
+A primary differentiator of VECTRA is its strict memory efficiency:
+- **`llama.cpp` Baseline:** Allocates separate memory buffers for model weights, dynamic compute graphs, tensor views, and workspace buffers, requiring ~1,172 MB for `Qwen2.5-1.5B`.
+- **VECTRA Architecture:** Directly maps the GGUF file via Win32 `MapViewOfFile` (1.06 GB) and allocates an 8 MB unified `LayerScratch` workspace and a fixed KV-cache. Total peak resident working set is strictly maintained at **1,061.4 MB**, saving **111 MB of RAM**.
+- **Memory Ceiling:** The engine enforces an operational memory ceiling $\le 1.10\text{ GB}$ ($1,126.4\text{ MB}$) across all sequence lengths and thread counts.
+
+## Performance Profile and Empirical Benchmarks
+
+Benchmarked on an **Intel Core i7-12650H** (10 physical cores: 6 Golden Cove P-cores + 4 Gracemont E-cores, 16 threads, AVX2/FMA3, 16 GB DDR5-4800 RAM, Windows 11 x64):
+
+| Benchmark Workload | Evaluated Tokens | Sustained Median Throughput | Peak Warm Burst | Peak Working Set RAM |
+| :--- | :---: | :---: | :---: | :---: |
+| **P1: "The capital of France is"** | 5 prompt, 32 gen | **16.82 tok/s** (1,842.7 ms) | **19.97 tok/s** (1,552.3 ms, 8t)<br />**20.46 tok/s** (733.2 ms, 16-gen) | **1,061.4 MB** |
+| **P2: "def fibonacci(n):"** | 4 prompt, 16 gen | **17.55 tok/s** (854.8 ms) | **19.26 tok/s** (778.7 ms, 8t) | **1,061.2 MB** |
+| **P3: ChatML 2+2 Query** | 16 prompt, 16 gen | **14.64 tok/s** (1,024.3 ms) | **14.86 tok/s** (1,009.6 ms) | **1,063.5 MB** |
+| **P3 Prefill (16 prompt tokens)** | 16 prompt | **24.13 tok/s** (663.1 ms) | **25.92 tok/s** (617.3 ms) | **1,063.5 MB** |
+
+## Engineering Decisions and Tradeoffs
+
+1. **Clean-Room Independence vs Wrapping GGML:** Implementing tensor operations and GGUF parsing from scratch required hundreds of hours of micro-kernel development. However, it eliminated thousands of lines of external dependencies, giving complete inspectability over memory layouts and hardware dispatch.
+2. **Streaming GEMV-N vs Register-Tiled GEMM for Prefill:** For the prefill phase, VECTRA implements a streaming batched GEMV-N kernel (quantizing activations and streaming weights once). While this achieves 24–26 tok/s (a 4.9× improvement over un-fused prefill), a full $16 \times 16$ register-tiled GEMM could achieve 60–80 tok/s. This tradeoff was accepted for v0.1.0 to keep memory footprint bounded.
+3. **OS Scheduling vs Thread Affinity:** Worker threads currently rely on the Windows OS scheduler across Alder Lake P-cores and E-cores. While 10 worker threads deliver optimal sustained throughput, minor thread migration jitter occurs; explicit thread pinning (`SetThreadAffinityMask`) is scheduled for future milestones.
+
+## Testing and Verification Suite
+
+VECTRA features a 53-test verification suite spanning 9 dedicated test runners:
+- **Unit & Memory Tests (`vectra_unit_tests.exe`):** 7/7 passed (Memory alignment, FP16 conversions, tensor views).
+- **Numerical Parity Tests (`vectra_numerical_tests.exe`):** 6/6 passed (Dot products, RMSNorm, RoPE, Softmax).
+- **Integration Tests (`vectra_integration_tests.exe`):** 3/3 passed (Causal attention masking, transformer layer step).
+- **Tokenizer Parity (`vectra_tokenizer_tests.exe`):** 11/11 passed (Exact tokenization matches Hugging Face across languages).
+- **GGUF & Quantization Tests (`vectra_m2_tests.exe`):** 4/4 passed (GGUF header parsing, Q4_K/Q6_K extraction).
+- **KV-Cache Bounds (`vectra_m3_tests.exe`):** 4/4 passed (Context limits, thread pool determinism).
+- **INT8 Activation Quantization (`vectra_m4_tests.exe`):** 5/5 passed (Activation clamping, dynamic scale precision).
+- **Arithmetic Safety (`vectra_arithmetic_safety_tests.exe`):** 7/7 passed (Saturation protection, NaN/Inf handling).
+- **Projection Fidelity (`vectra_m5_tests.exe`):** 6/6 passed (INT8 projection accuracy, prefill recovery).
+
+## Results
+
+Audited metrics from the v0.1.0-rc1 milestone:
+- **Sustained Generation Speed:** **16.82 tokens/second** sustained median generation across 32 tokens on Prompt P1.
+- **Peak Warm Burst:** **20.46 tokens/second** generation throughput.
+- **Batched Prefill Speed:** **24.13 tokens/second** sustained (25.92 tokens/second peak).
+- **Memory Footprint:** Peak working set strictly held at **1,061.4 MB**, maintaining the $\le 1.10\text{ GB}$ ceiling and saving 111 MB compared to `llama.cpp`.
+- **DDR5 Bandwidth Utilization:** LM-head projection streams at **33.8 GB/s** (**88% of physical hardware peak**).
+- **Verification Integrity:** **53/53 tests passed** across all 9 test suites.
+
+## Limitations
+
+- **Single Model Family:** v0.1.0-rc1 supports the Qwen2.5 transformer architecture; models with different architectures (e.g., LLaMA 3, Gemma, Mistral) are not yet supported.
+- **Prefill GEMM Tiling:** Does not yet incorporate an L1-cache-tiled GEMM; prefill speed is bounded by streaming GEMV-N (24–26 tok/s).
+- **Thread Affinity Pinning:** Does not currently pin threads to P-cores, leading to occasional latency jitter from OS scheduler migration across hybrid Alder Lake cores.
+- **FP32 KV-Cache:** Key and Value states are stored in FP32; sequences beyond 4,096 tokens require substantial memory. Quantized 8-bit KV-cache is planned for future releases.
+
+## Reproducibility
+
+The complete inference engine source code, build configuration, and verification tests are publicly available:
+- **Repository:** [`Zylus08/VECTRA`](https://github.com/Zylus08/VECTRA)
+- **Commit:** [`fe72774be725a0a82ad74a38d34e571ef9d7e0cd`](https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/README.md)
+- **Release Tag:** `v0.1.0-rc1`
+- **Target Model Checkpoint:** `Qwen2.5-1.5B-Instruct-GGUF` (Q4_K_M) available on Hugging Face (SHA-256: `6A1A2EB6D15622BF3C96857206351BA97E1AF16C30D7A74EE38970E434E9407E`).
+- **Build Environment:** Windows 11 x64, Visual Studio 2022 C++ Build Tools (MSVC 19.35+), CMake 3.25+, Ninja.
+- **Verification Commands:**
+  ```cmd
+  :: Configure and build Release binaries
+  cmake -B build_release -G Ninja -DCMAKE_BUILD_TYPE=Release
+  cmake --build build_release -j 1
+
+  :: Run complete test suite (53/53 tests)
+  ctest --test-dir build_release --output-on-failure
+
+  :: Run fast greedy generation CLI
+  build_release\vectra_cli.exe -m models\qwen2.5-1.5b-instruct-q4_k_m.gguf -p "The capital of France is" -n 16 -t 10 --temp 0
+  ```
+
+## Future Work
+
+1. **L1-Cache Register-Tiled GEMM:** Implement $16 \times 16$ micro-kernels for prefill to achieve 60–80 tok/s prompt ingestion.
+2. **Win32 Core Affinity Pinning:** Add `SetThreadAffinityMask` to lock worker threads to physical Performance cores.
+3. **Quantized KV-Cache:** Implement dynamic INT8 KV-cache quantization to support 32k+ context windows on laptop RAM.
+4. **LLaMA 3 & Mistral Compatibility:** Expand tensor layout loaders to support additional open-weight transformer architectures.
+
+## References and Evidence
+
+- [VECTRA Release Decision Audit](https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/rc1/FINAL_RELEASE_DECISION.md)
+- [VECTRA Hardware Profile & Benchmarks](https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/m1/HARDWARE_PROFILE.md)
+- [VECTRA Numerical Verification Suite](https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/m1/NUMERICAL_VERIFICATION.md)
+- [VECTRA Memory Certification Audit](https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/rc1/MEMORY_CERTIFICATION.md)

@@ -8,7 +8,7 @@ import {
 
 test("audited catalogue includes every required quant case and seven featured projects", () => {
   const projects = getEntries("projects");
-  assert.equal(projects.length, 24);
+  assert.equal(projects.length, 28);
   assert.equal(
     projects.filter((entry) => entry.featured).length,
     homepageProjectLimit,

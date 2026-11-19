@@ -1,0 +1,187 @@
+---
+title: "PRAXIS"
+summary: "A restricted, lifetime-safe C++ interpreter built in C++20, featuring an Abstract Validated Handle Reference Model, deterministic RAII cleanup, class templates, and an STL subset."
+category: "Systems & Infrastructure"
+status: "Independent exploration"
+featured: false
+tier: "Case study"
+tags: ["C++20", "Interpreter", "Memory Safety", "RAII", "Templates", "STL Subset", "MSVC Differential"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/PRAXIS"
+evidence: {"repository": "Zylus08/PRAXIS", "commit": "aed74043eca5c7092250d5449eed6ddc4d7c0aac", "reviewed": "2026-11-19"}
+---
+
+## Abstract
+
+PRAXIS is an independent, self-contained C++20 implementation of a restricted C++ tree-walking interpreter. Built entirely from first principles, it lexes, preprocesses, parses, type-checks, and interprets a substantial dialect of C++ without compiling to native machine instructions or depending on external compiler infrastructures like Clang, LLVM, or GCC. PRAXIS directly models C++ object semantics: classes, constructors, deterministic destructor chains, dynamic allocation (`new` and `delete`), template instantiation, and a core Standard Template Library (STL) subset.
+
+To eliminate the undefined behavior and segmentation faults inherent in interpreting raw C++ pointers, PRAXIS introduces an Abstract Validated Handle Reference Model. Pointers are represented not as raw host virtual memory addresses, but as structured descriptor tuples validated against active allocation tables. This case study examines the architecture, lifetime management, template mechanics, and differential verification of PRAXIS v0.1.0 at commit `aed74043eca5`, which demonstrates 100% output parity across 258 differential programs compiled against native MSVC.
+
+## Problem and Motivation
+
+Interpreting C++ is widely considered one of the most formidable challenges in language runtime engineering. Unlike interpreted languages designed for managed runtimes (such as Python or JavaScript), C++ gives programmer direct access to memory addresses, stack-allocated object scopes, and explicit pointer arithmetic. Attempting to interpret C++ directly exposes severe structural dilemmas:
+- **Host Address Pollution:** If an interpreter executes user pointers using raw host memory addresses, user errors such as use-after-free, double-free, or out-of-bounds pointer arithmetic will corrupt the host interpreter process or cause uncontrolled segmentation faults.
+- **Deterministic Lifetime Ordering:** C++ demands precise destructor invocation ordering: automatic variables must be destroyed in reverse order of construction as stack frames pop, temporary objects must be cleared at expression boundaries, and dynamic allocations must execute typed destructor chains before freeing memory.
+- **Generic Programming Overhead:** Supporting templates in an interpreter requires generic AST parameterization, call-site argument type deduction, and memoized specialization without an ahead-of-time compiler.
+
+Most existing solutions compromise: Cling and ChRoot compile C++ on the fly via massive LLVM JIT pipelines, while lightweight toy interpreters discard pointers, classes, or templates entirely. PRAXIS explores a third way: an un-jitted, pure tree-walking interpreter that strictly preserves C++ lifetime semantics and pointer ergonomics within a safe, bounded runtime environment.
+
+## System Architecture
+
+The PRAXIS execution pipeline translates C++ source text into safe runtime state through five structured phases:
+
+<Diagram steps="Lexer & Preprocessor|AST Parser & Type Checker|Handle Reference Model|Tree-Walking Evaluator|RAII & Lifetime Engine" caption="PRAXIS compilation and tree-walking execution pipeline." />
+
+1. **Lexical Analysis & Preprocessing:** Converts source text into typed tokens while tracking source file coordinates. Handles `#include` directives for virtualized standard library headers and expands basic macro directives.
+2. **Abstract Syntax Tree (AST) Parser:** A recursive-descent parser constructs an AST supporting namespaces, class declarations, member access specifiers (`public`, `private`), template declarations, and expressions.
+3. **Type Checker & Semantic Analyzer:** Resolves symbol tables, computes compound types (`T*`, `const T*`, `T&`, `T**`), verifies const-correctness, and resolves function and constructor overloads.
+4. **Abstract Validated Handle Reference Model:** Transforms pointer and reference values into safe structured handles that encapsulate object identity, generation counters, and offset boundaries.
+5. **Tree-Walking Execution Runtime & RAII Engine:** Traverses AST statement nodes, manages stack frames, coordinates dynamic heap allocations, and guarantees zero-leak destructor invocation.
+
+## The Abstract Validated Handle Reference Model
+
+In PRAXIS, a pointer is never a 64-bit integer pointing to the interpreter's host memory. Instead, pointers are represented as first-class handle structures:
+
+$$\text{PointerHandle} = \langle \text{targetId},\, \text{generation},\, \text{targetType},\, \text{offset} \rangle$$
+
+- `targetId`: A unique 64-bit identifier assigned to each distinct allocation (stack variable, heap block, or container element buffer).
+- `generation`: An integer incremented whenever an allocation slot is recycled, preventing stale handles from accessing newly allocated memory.
+- `targetType`: The validated static and dynamic type of the referenced object.
+- `offset`: Byte or element index for pointer arithmetic within contiguous arrays.
+
+When user code performs pointer arithmetic:
+```cpp
+int arr[5] = {10, 20, 30, 40, 50};
+int* ptr = arr + 2; // offset = 2
+ptr += 1;           // offset = 3
+int val = *ptr;     // bounds checked: offset < 5 -> returns 40
+```
+PRAXIS validates that:
+1. `targetId` exists in the active allocation table.
+2. The handle's `generation` matches the allocation's current generation (trapping use-after-free).
+3. The computed `offset` remains within the allocated boundary (trapping buffer overflow).
+4. Dereferencing `nullptr` (`targetId == 0`) immediately aborts with a graceful diagnostic trap rather than crashing the process.
+
+## Object Lifetimes, Dynamic Storage, and Deterministic RAII
+
+PRAXIS enforces C++ Resource Acquisition Is Initialization (RAII) contracts with mathematical precision. Every execution scope maintains a destructor registration chain:
+
+```cpp
+#include <iostream>
+
+struct Tracker {
+    int id;
+    Tracker(int i) : id(i) { std::cout << "C" << id << " "; }
+    ~Tracker() { std::cout << "D" << id << " "; }
+};
+
+int main() {
+    Tracker t1(1);
+    {
+        Tracker t2(2);
+        Tracker* t3 = new Tracker(3);
+        delete t3;
+    }
+}
+// Output: C1 C2 C3 D3 D2 D1
+```
+
+PRAXIS coordinates three distinct memory domains:
+1. **Automatic Storage (Stack):** When execution exits a compound block (`{ ... }`), PRAXIS unwinds the frame's scope table, invoking destructors in the reverse order of declaration.
+2. **Dynamic Storage (`new` and `delete`):** `new T(args...)` allocates managed memory from PRAXIS's object registry, resolves constructor overloads, and returns a typed handle. `delete p` validates that the handle represents a dynamically allocated heap object (trapping illegal attempts to delete stack variables), executes `T`'s destructor, and marks the allocation slot as freed. Attempting to call `delete p` twice on the same pointer triggers an immediate double-free runtime panic.
+3. **Allocation Quotas:** The interpreter accepts a `--max-objects` flag to enforce hard resource bounds, preventing runaway memory exhaustion from malicious or accidental infinite loops.
+
+## Templates and Standard Template Library (STL) Subset
+
+A major milestone of PRAXIS v0.1.0 is generic programming support:
+- **Class and Function Templates:** Generic classes (e.g., `template<typename T> class Accumulator`) can be instantiated with primitive types (`int`, `double`) or user-defined structs. The semantic engine inspects template arguments, instantiates specialized AST subtrees, and memoizes them to avoid redundant processing.
+- **Standard Library Subset:**
+  - `<vector>`: `std::vector<T>` supporting default, sized, and initializer-list construction, deep copy semantics, `push_back`, `pop_back`, bounds-checked `at()`, `operator[]`, `front`, `back`, `resize`, `reserve`, `begin`, and `end`.
+  - `<string>`: String manipulation with `size()`, `length()`, `substr()`, and character indexing.
+  - `<utility>`: Pair construction via `std::pair<T1, T2>`, `std::make_pair`, `std::swap`, and move semantics via `std::move`.
+  - `<algorithm>`: Common algorithms operating on iterator handles: `std::min`, `std::max`, `std::sort`, `std::reverse`, `std::find`, and `std::count`.
+  - **Range-Based For Loops:** Lowering of `for (auto item : container)` into standard iterator loops using `begin()` and `end()` pointer handles.
+
+```cpp
+// Authentic PRAXIS v0.1.0 acceptance program (examples/rc1_1/accumulator_template.cpp)
+#include <iostream>
+#include <vector>
+
+template<typename T>
+class Accumulator {
+    T value;
+public:
+    Accumulator(T initial) : value(initial) {}
+    void add(T x) { value += x; }
+    T result() const { return value; }
+};
+
+int main() {
+    std::vector<int> numbers = {10, 20, 30};
+    Accumulator<int> sum(0);
+    for (int n : numbers) {
+        sum.add(n);
+    }
+    std::cout << sum.result() << "\n"; // Outputs: 60
+}
+```
+
+## Engineering Decisions and Tradeoffs
+
+1. **Tree-Walking Interpretation vs Bytecode VM:** PRAXIS evaluates the AST directly via tree walking. While a register- or stack-based bytecode VM yields faster instruction dispatch, direct AST evaluation dramatically simplifies the representation of template instantiations, dynamic scoping, and transparent debugging stack traces.
+2. **Handle Indirection vs Raw Pointer Execution:** Translating every pointer dereference through an allocation table incurs an indirection overhead compared to native execution. However, this tradeoff is non-negotiable: it provides complete immunity to host process memory corruption.
+3. **Dialect Boundary vs Full ISO Compliance:** C++ is an immense standard. PRAXIS targets a clean, modern core dialect (C++20 style) while intentionally omitting complex historical baggage like multiple inheritance, virtual function tables, and exception unwinding.
+
+## Testing and Differential Verification
+
+PRAXIS was validated against an exhaustive, multi-tier testing framework:
+1. **CTest Test Runners:** 7 independent runners executing unit tests for the frontend, memory model, templates, and runtime components.
+2. **Adversarial Safety Suite:** 13 dedicated safety checks verifying memory protection against use-after-free, double deletion, deleting stack variables, dangling pointers to popped stack frames, and null dereferencing.
+3. **Differential Parity Against Native MSVC:** The cornerstone of PRAXIS's verification is differential testing against native Microsoft Visual C++ (`cl.exe /std:c++20 /EHsc /Od /Zc:nrvo-`). A Python test harness compiles each test program with MSVC, runs the resulting native `.exe`, executes the identical source file in PRAXIS, and performs a byte-for-byte comparison of standard output and return codes. Across 258 differential programs (42 M3, 79 M2, and 137 M1 programs), PRAXIS achieved a 100.0% pass rate.
+
+## Results
+
+Audited release metrics from the certified v0.1.0 milestone:
+- **Total Verification Checks:** **1,614 total checks passed** across Debug and Release configurations (807 checks per configuration).
+- **Differential Parity:** **258/258 differential programs** matched native MSVC execution byte-for-byte (100.0% pass rate).
+- **Memory Safety Invariants:** Zero memory leaks, zero dangling pointer dereferences, and 100% trapped adversarial violations across all test suites.
+- **Telemetry & Resource Profiling:** Validated `--profile` metrics tracking dynamic allocations, peak live objects, and container operations with complete operational accounting.
+
+## Limitations
+
+PRAXIS is a restricted dialect interpreter, not a fully compliant ISO C++ compiler:
+- **No Dynamic Polymorphism:** Virtual methods (`virtual`), pure abstract classes, and runtime virtual method tables (vtables) are not implemented.
+- **No Multiple Inheritance:** Supports single inheritance only; multiple base classes and virtual base classes are unsupported.
+- **No Exception Handling:** `try`, `catch`, and `throw` statements are not supported; runtime errors trigger deterministic process panics.
+- **No Concurrency:** Execution is strictly single-threaded; `<thread>`, `<atomic>`, and `std::mutex` are not available.
+- **Preprocessor Restrictions:** Does not support complex macro expansions (`#define` with variadic arguments) or conditional compilation beyond basic `#include` handling.
+
+## Reproducibility
+
+The complete interpreter source, build tooling, example programs, and differential verification suites are publicly accessible:
+- **Repository:** [`Zylus08/PRAXIS`](https://github.com/Zylus08/PRAXIS)
+- **Commit:** [`aed74043eca5c7092250d5449eed6ddc4d7c0aac`](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/README.md)
+- **Release Tag:** `v0.1.0`
+- **Build Environment:** Windows 11 x64, Visual Studio 2022 C++ Build Tools (MSVC v143), CMake, Ninja, Python 3.10+.
+- **Verification Commands:**
+  ```powershell
+  # Build Debug and Release configurations
+  ./tools/build.ps1 -Configuration Release
+
+  # Run full verification suite (Unit, Adversarial, Differential)
+  ./tools/verify-m3.ps1 -Configuration Release
+  ```
+
+## Future Work
+
+1. **Bytecode Virtual Machine:** Lower AST expressions into compact bytecode instructions for an order-of-magnitude increase in loop execution throughput.
+2. **Virtual Tables & Dynamic Dispatch:** Implement single-inheritance virtual method tables to support object-oriented polymorphism.
+3. **Smart Pointers:** Add full support for `std::unique_ptr<T>` and `std::shared_ptr<T>` with reference count tracking.
+4. **Lambda Expressions:** Support anonymous closure generation and capture lists.
+
+## References and Evidence
+
+- [PRAXIS Final Release Certification Decision](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/FINAL_RELEASE_VERIFICATION.md)
+- [PRAXIS Architecture and Execution Guide](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/docs/ARCHITECTURE.md)
+- [PRAXIS Differential Verification Harness](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/audit/rc1_1/DIFFERENTIAL_HARNESS_AUDIT.md)
+- [PRAXIS Pointer Memory Forensics](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/audit/rc1_1/POINTER_MEMORY_FORENSICS.md)
