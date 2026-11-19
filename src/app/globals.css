@@ -2509,6 +2509,18 @@ td {
   padding-top: 14px;
   border-top: 1px solid var(--line);
 }
+.fp-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.fp-essay-link {
+  color: var(--accent);
+}
+.fp-essay-link:hover {
+  text-decoration: underline;
+}
 @media (max-width: 900px) {
   .first-principles-grid {
     grid-template-columns: 1fr;

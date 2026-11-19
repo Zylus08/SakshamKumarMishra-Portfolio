@@ -437,6 +437,26 @@
     {
       "url": "https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/rc1/MEMORY_CERTIFICATION.md",
       "blob": "cf1815becbe9e44a064b2d12a2bef1c377754e77"
+    },
+    {
+      "url": "https://github.com/Zylus08/VECTRA/blob/fe72774be725a0a82ad74a38d34e571ef9d7e0cd/audit/rc1/BENCHMARK_RECONCILIATION.md",
+      "blob": "bf04127d08035f145d2fe65e88160a1b86a93b37"
+    },
+    {
+      "url": "https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/forge/benchmarking/canonical_runner.py",
+      "blob": "d3cdde3385e47e8a0fac18e24fa020293e9e688d"
+    },
+    {
+      "url": "https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/m3/DIFFERENTIAL_VALIDATION.md",
+      "blob": "3576505b6aff70232a1e7fc796119430955f5e21"
+    },
+    {
+      "url": "https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/tests/numerical/test_zero_mask_edge_cases.py",
+      "blob": "e961cdba20b8daede5d1078edd7df3c0f10d1058"
+    },
+    {
+      "url": "https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/src/execution/physical_hash_join.cpp",
+      "blob": "18e1dfc4f31b4e6f67552ab996c636803c7d4d5f"
     }
   ]
 }

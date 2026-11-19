@@ -1,0 +1,324 @@
+---
+title: "What Happens When a SQL Query Outgrows Memory?"
+summary: "An engineering exploration into out-of-core query execution, tracing how analytical SQL engines manage Grace Hash Joins, hierarchical merge sorting, and spill serialization under tight memory budgets."
+category: "Engineering"
+status: "Published"
+featured: false
+tags: ["Systems Engineering", "Database Internals", "C++20", "External Memory", "SQL Execution"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/Axiom"
+evidence: {"repository": "Zylus08/Axiom", "commit": "e27db36e8c6061317656665fcecd46d71803970d", "reviewed": "2026-11-19"}
+---
+
+## 1. The Query That Broke the Buffer
+
+Consider a familiar analytical query running across a retail dataset:
+
+```sql
+SELECT 
+    c.customer_region,
+    o.order_status,
+    COUNT(*) AS total_orders,
+    SUM(o.total_amount) AS regional_revenue,
+    AVG(o.discount_rate) AS mean_discount
+FROM customers c
+INNER JOIN orders o ON c.customer_id = o.customer_id
+WHERE o.order_date >= '2025-01-01'
+GROUP BY c.customer_region, o.order_status
+ORDER BY regional_revenue DESC
+LIMIT 50;
+```
+
+In a development environment with a 20 MB sample CSV, this query completes in milliseconds. The execution pipeline is deceptively simple:
+1. Scan `customers.csv` and build an in-memory hash table on `customer_id`.
+2. Scan `orders.csv`, evaluate the date predicate, and probe the hash table.
+3. For matching tuples, project the payload into an aggregation hash table keyed on `(customer_region, order_status)`.
+4. Insert the aggregated buckets into an in-memory priority queue (`std::priority_queue`) to extract the top 50 records.
+
+Now scale that workload to production realities: `customers.csv` contains 15 million rows, `orders.csv` contains 150 million rows (5.37 GB of raw uncompressed text), and the entire execution must succeed inside a memory budget capped at 64 MB.
+
+At this boundary, the naive execution model collapses catastrophically:
+- The build-side hash table cannot fit into memory; attempts to insert more keys trigger either an out-of-memory (OOM) abort or catastrophic operating system paging thrash.
+- The aggregation hash table exceeds available cache lines and spills into virtual memory swap, stalling CPU execution on disk page faults.
+- Sorting cannot occur via standard in-memory algorithms like Quicksort or Timsort because the entire intermediate dataset cannot be materialized simultaneously.
+
+This essay explores what actually happens under the hood when a relational query outgrows physical RAM. Drawing on architectural lessons and concrete implementation source code from [AXIOM](/projects/axiom)—an analytical SQL engine written from scratch in C++20—we analyze the mechanics of out-of-core query compilation, block Grace Hash Joins, external merge sorting, binary spill formats, and the subtle gap between engine memory accounting and process resident memory.
+
+---
+
+## 2. From Text to Physical Operators: Setting the Execution Context
+
+Before an engine can manage memory pressure, it must translate the declarative SQL string into an executable physical operator pipeline. AXIOM decomposes this transformation into five discrete phases:
+
+<Diagram steps="Lexer & Pratt Parser|Semantic Binder & Schema Resolver|Logical Plan Generator|Rule-Based Optimizer|Physical Operator Pipeline" caption="Query compilation pipeline: transforming declarative SQL text into memory-budgeted physical operators." />
+
+1. **Lexical Analysis and Pratt Parsing:** The engine scans source text, emitting typed tokens with source line and column coordinates. Expressions are parsed using a Pratt top-down operator precedence parser, elegantly handling operator associativity and parenthesized precedence without recursive AST bloat.
+2. **Semantic Binding:** Unqualified table and column identifiers are resolved against registered schemas. Column names are bound to zero-indexed physical chunk offsets, constant folding is performed on deterministic literals, and aggregate function arguments are validated against grouping sets.
+3. **Logical Planning:** The AST is lowered into a relational algebra tree: `LogicalScan` $\to$ `LogicalFilter` $\to$ `LogicalJoin` $\to$ `LogicalAggregate` $\to$ `LogicalSort` $\to$ `LogicalLimit`.
+4. **Rule Optimization:** The logical tree is rewritten using heuristic equivalence rules. Filters are pushed below joins to reduce intermediate cardinalities; projections are pruned so unreferenced columns are discarded immediately after scanning; and `LIMIT` operators are pushed into sort nodes to form bounded Top-K heaps when possible.
+5. **Physical Operator Lowering:** Logical nodes become physical pull-based iterators. Rather than processing a single tuple at a time (Volcano iterator overhead), AXIOM operates on homogeneous vectors of rows termed `RecordBatch` chunks (typically 4,096 rows per batch).
+
+Once this physical pipeline begins execution, every stateful operator—joins, aggregations, and sorts—must confront the fundamental constraint of external-memory computing.
+
+---
+
+## 3. Formalizing the External Memory Problem
+
+Let $M$ denote the total memory budget allocated to a physical operator (measured in bytes or physical pages of size $B$). Let $|R|$ denote the size of the inner (build) relation, and $|S|$ denote the size of the outer (probe) relation, with $|R| \le |S|$.
+
+In the classical RAM model, memory access cost is uniform: reading any memory address costs $\mathcal{O}(1)$. In external memory, however, transfer between secondary storage (NVMe/SSD) and main memory occurs in disk blocks. The external memory complexity measure is the number of block transfers (I/Os) required to execute the operation.
+
+When $|R| \le M$, an in-memory hash join executes with linear I/O:
+
+$$\text{I/O}_{\text{in-memory}} = \frac{|R| + |S|}{B}$$
+
+We scan both relations from disk once, construct the hash table in memory, probe it, and emit results.
+
+When $|R| > M$, however, maintaining the entire hash table in memory is impossible. If the engine attempts an unpartitioned nested loop join:
+
+$$\text{I/O}_{\text{naive-block-nested}} = \frac{|R|}{B} + \left( \frac{|R|}{M} \right) \cdot \frac{|S|}{B}$$
+
+The outer relation $|S|$ must be re-read from disk $\lceil |R| / M \rceil$ times. On a 5 GB dataset with a 64 MB memory budget, this requires scanning the outer table 80 times, degrading query execution time from seconds to hours.
+
+To prevent this catastrophic I/O amplification, analytical query engines rely on **Grace Hash Join** and **Hierarchical External Merge Sort**.
+
+---
+
+## 4. Grace Hash Join: Divide, Partition, and Conquer
+
+The core insight of the Grace Hash Join (originally formulated for the GRACE database machine at the University of Tokyo) is that matching join keys can be grouped into independent partitions that fit entirely within memory.
+
+### 4.1 The Partitioning Phase
+Let $h_1$ be a uniform hash function mapping join keys to the integer range $[0, K-1]$, where $K$ is the number of disk-backed bucket partitions. The engine selects $K$ such that the average partition size of the build relation fits within the operator's memory budget:
+
+$$K \approx \left\lceil \frac{|R| \cdot f}{M} \right\rceil$$
+
+where $f \ge 1.2$ is a fudge factor accounting for hash table overhead and key skew.
+
+During the first pass:
+1. The engine reads relation $R$ in batches. For every tuple, it computes $p = h_1(\text{key}) \pmod K$.
+2. The tuple is routed to an in-memory output buffer associated with partition $p$.
+3. When an output buffer fills (reaching block size $B$), it is flushed to an append-only disk file: `build_part_p.axmb`.
+4. Once relation $R$ is fully partitioned, relation $S$ is scanned and partitioned using the identical hash function $h_1$, creating `probe_part_p.axmb`.
+
+Because hash functions are deterministic, any tuple in $R$ that joins with a tuple in $S$ must share the exact same hash value:
+
+$$\text{key}_R = \text{key}_S \implies h_1(\text{key}_R) = h_1(\text{key}_S) \implies \text{partition}(R) = \text{partition}(S)$$
+
+Tuples in partition $i$ of $R$ can only ever join with tuples in partition $i$ of $S$. Partitions $i$ and $j$ ($i \neq j$) are completely orthogonal and can be evaluated independently.
+
+```text
+                  Incoming Tuples (Relation R or S)
+                                  │
+                          Hash Function h₁(k)
+                                  │
+                 ┌────────────────┼────────────────┐
+                 ▼                ▼                ▼
+            Partition 0      Partition 1      Partition K-1
+          ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+          │ Memory Buf  │  │ Memory Buf  │  │ Memory Buf  │
+          └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+                 ▼                ▼                ▼
+            Flush to Disk    Flush to Disk    Flush to Disk
+          ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+          │part_0.axmb  │  │part_1.axmb  │  │part_K.axmb  │
+          └─────────────┘  └─────────────┘  └─────────────┘
+```
+
+### 4.2 The Build and Probe Phase
+Once both relations are completely partitioned on disk, the engine processes each partition pair $(R_i, S_i)$ sequentially:
+1. The engine reads `build_part_i.axmb` from disk into memory and constructs an in-memory hash table using a secondary hash function $h_2 \neq h_1$.
+2. The engine streams batches from `probe_part_i.axmb`, hashes the probe keys using $h_2$, probes the in-memory hash table, and emits matching output rows.
+3. The hash table is cleared, deallocating memory, and the engine advances to partition $i+1$.
+
+The total I/O cost of standard Grace Hash Join is strictly bounded:
+
+$$\text{I/O}_{\text{Grace}} = 2 \cdot \left( \frac{|R| + |S|}{B} \right) + \frac{|R| + |S|}{B} = 3 \cdot \left( \frac{|R| + |S|}{B} \right)$$
+
+We write both relations to disk once (partitioning), read both relations back once (joining), plus the initial scan. This is a dramatic asymptotic improvement over block nested loops, converting quadratic worst-case I/O into linear cost.
+
+---
+
+## 5. Bounded Build Blocks and Skew Handling in Practice
+
+The mathematical elegance of Grace Hash Join relies on an idealistic assumption: that hash function $h_1$ distributes keys uniformly across all $K$ partitions.
+
+In reality, real-world data exhibits heavy-tailed distributions and high key skew. If 40% of orders belong to a single enterprise customer, partition $p_{\text{skew}}$ will be massive. When the engine attempts to load `build_part_skew.axmb` into memory during phase two, the partition will still exceed memory budget $M$.
+
+In [AXIOM's source implementation](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/src/execution/physical_hash_join.cpp), this dilemma is solved via **Recursive Re-hashing and Bounded Block Probing**:
+
+```text
+Algorithm: AXIOM Grace Hash Join Partition Evaluation
+Input: Partition file pair (build_part_i, probe_part_i), Memory Limit M
+
+1. If file_size(build_part_i) <= M:
+     Construct in-memory hash table H from build_part_i using hash h2
+     For each batch in probe_part_i:
+         Probe H and emit matching rows
+2. Else (Partition Skew Detected):
+     If recursion_depth < MAX_RECURSION_DEPTH:
+         Recursively partition build_part_i and probe_part_i using hash h(depth+1)
+         For each sub-partition pair:
+             Evaluate sub-partition recursively
+     Else:
+         Fall back to Bounded Block Nested Loop:
+             While build_part_i has remaining batches:
+                 Load a sub-block of batches fitting in M into hash table H
+                 Rewind probe_part_i to offset 0
+                 Stream entire probe_part_i against H and emit matches
+```
+
+By supporting probe file rewinding across bounded memory sub-blocks, AXIOM guarantees that query execution never aborts with an out-of-memory exception, regardless of extreme input data skew.
+
+---
+
+## 6. Hierarchical External Merge Sort and Bounded Fan-In
+
+Sorting is an inherently blocking operator: an engine cannot emit the first row of an `ORDER BY` clause until it has observed the final input row. When dataset volume exceeds memory, the engine must execute an **External Merge Sort**.
+
+External merge sort proceeds in two distinct stages:
+1. **Run Generation:** Input batches are accumulated in an in-memory buffer up to memory budget $M$. The in-memory buffer is sorted using C++ `std::sort` with custom tuple comparator predicates. Once sorted, the buffer is serialized to disk as a sorted run file: `run_0.axmb`, `run_1.axmb`, etc.
+2. **Multi-Way Merge:** The sorted runs are merged into a single sorted stream using a min-heap priority queue.
+
+```text
+Stage 1: Run Generation
+Input Batches ──► [ In-Memory Buffer (Cap: M) ] ──► std::sort ──► Flush: run_0.axmb
+Input Batches ──► [ In-Memory Buffer (Cap: M) ] ──► std::sort ──► Flush: run_1.axmb
+...
+Input Batches ──► [ In-Memory Buffer (Cap: M) ] ──► std::sort ──► Flush: run_N.axmb
+
+Stage 2: Multi-Way Hierarchical Merge
+┌──────────────┐
+│ run_0.axmb   │──┐
+├──────────────┤  │
+│ run_1.axmb   │──┼──► [ Priority Queue (Fan-in: F) ] ──► Intermediate Run
+├──────────────┤  │
+│ run_F-1.axmb │──┘
+└──────────────┘
+```
+
+### The Fan-In Dilemma: File Descriptors and Memory Leaks
+Suppose an engine generates $N = 256$ sorted runs of 16 MB each (4 GB total). A naive external sort implementation opens all 256 run files simultaneously, instantiates an input read buffer for each file, and feeds them into a 256-way priority queue.
+
+This naive approach introduces two fatal engineering flaws:
+- **File Descriptor Exhaustion:** Operating systems impose strict per-process limits on open file handles (`ulimit -n` on Linux, typically 1,024; Win32 default handle table limits). Concurrent file handles compete directly with network sockets and table readers.
+- **Buffer Memory Multiplicative Blowout:** If each open run allocates an internal 1 MB read-ahead buffer, 256 open runs consume 256 MB of unbudgeted memory—completely violating a 16 MB `--memory-limit`.
+
+During Milestone RC1.1, [AXIOM's memory forensics audit](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/rc1_1/MEMORY_DISCREPANCY.md) uncovered exactly this pathology: a single-pass merge loaded hundreds of unaccounted batches simultaneously, causing process working set to spike to 150.86 MB under a 16 MB configuration.
+
+The remedy is **Hierarchical Multi-Pass Merging with Bounded Fan-In**:
+- The engine enforces a strict maximum merge fan-in $F$ (e.g., $F = 16$ runs).
+- If the number of active runs $N > F$, the engine executes intermediate merge passes: it merges the first $F$ runs into a single new consolidated run file, repeating until $\le F$ runs remain.
+- The final merge pass streams directly to the downstream consumer operator.
+
+This architectural repair reduced AXIOM's peak process working set during external sorting from **150.86 MB to 17.68 MB (-88.3%)**, proving that external memory algorithms must bound active streams just as rigorously as active bytes.
+
+---
+
+## 7. Partitioned External Aggregation
+
+Grouping aggregations (`GROUP BY c.customer_region, o.order_status`) exhibit memory characteristics similar to joins. If the number of distinct grouping keys is small (low cardinality, e.g., 50 US states), the aggregate hash table fits easily within L3 CPU cache. If the grouping key is high-cardinality (e.g., grouping by UUID or credit card hash), the hash table expands indefinitely.
+
+AXIOM handles high-cardinality aggregation via **Partitioned Hash Aggregation**:
+1. Incoming tuples are hashed on their grouping keys.
+2. If the aggregate hash table exceeds its memory threshold, the table is frozen, converted into an in-memory batch, and flushed to an append-only spill partition on disk.
+3. Subsequent tuples are partitioned directly to disk buckets based on their key hashes.
+4. Once the input relation is exhausted, each partition bucket is reloaded sequentially into memory. Because all identical keys were hashed to the same partition, the engine can finalize partial aggregates (`COUNT += partial_count`, `SUM += partial_sum`) independently for each bucket without global synchronization.
+
+---
+
+## 8. AXMB v1: Designing a Temporary Spill Container
+
+When intermediate batches are spilled to disk, serialization overhead becomes a primary performance bottleneck. Spilling data as ASCII CSV text would be catastrophic: it would require formatting floating-point numbers into strings on write and re-parsing strings with delimiter scanners on read.
+
+AXIOM addresses this via its proprietary **AXMB v1** (Axiom Binary Temporary Format) container format:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                 AXMB v1 Binary Batch Layout                 │
+├─────────────────┬──────────────┬──────────────┬─────────────┤
+│ Header (32 B)   │ NULL Bitmaps │ Offsets      │ Data Payloads│
+├─────────────────┼──────────────┼──────────────┼─────────────┤
+│ Magic: 'AXMB'   │ Bit-packed   │ Var-length   │ Fixed-width │
+│ Schema Version  │ 1 bit / cell │ string array │ contiguous  │
+│ Row Count       │ 0 = Valid    │ start/length │ primitive   │
+│ Col Count       │ 1 = NULL     │ indices      │ memory      │
+│ xxHash Checksum │              │              │ bytes       │
+└─────────────────┴──────────────┴──────────────┴─────────────┘
+```
+
+Key architectural properties of the AXMB format:
+1. **Bit-Packed NULL Bitmaps:** SQL three-valued logic requires explicit tracking of NULL status. Rather than storing a full byte per cell, AXIOM bit-packs nullability (1 bit per cell), reducing null overhead to 512 bytes per 4,096-row batch.
+2. **Zero-Copy Primitive Deserialization:** Fixed-width types (`BIGINT`, `DOUBLE`, `BOOLEAN`) are stored in contiguous memory buffers. On read, the engine reads directly into pre-allocated memory slices without per-element decoding.
+3. **Storage Corruption Protection:** Temporary SSD files are subject to silent bit flips and truncated flushes. Every AXMB block header includes an xxHash-64 non-cryptographic checksum computed over the block payload, verifying data integrity before deserialization.
+4. **RAII Quotas and Automatic Eviction:** Spilled files are wrapped in C++ RAII resource handles. If a query exceeds `--max-temp-disk` (e.g., 10 GB), execution aborts immediately, and destructor chains clean up all temporary `.axmb` files from the disk directory.
+
+---
+
+## 9. Engine Memory Budgets vs. Operating System Process RSS
+
+A frequent point of confusion in database engineering is the distinction between **Engine-Managed Memory Budgets** and **Operating System Process Working Set (RSS)**.
+
+When a user executes:
+```powershell
+.\build\axiom.exe -t "orders=orders.csv" -e "..." --memory-limit 16MB
+```
+AXIOM's internal memory manager enforces that the sum of all operator-allocated `RecordBatch` buffers, hash tables, and merge heaps does not exceed 16 MB.
+
+However, the operating system's Task Manager or `ps` utility may report a working set of 28 MB. Why this discrepancy?
+1. **C++ Standard Allocator Fragmentation:** Standard `malloc` or `std::allocator` implementations (such as the MSVC CRT heap) do not immediately return freed memory pages to the OS kernel via `VirtualFree` or `brk/sbrk`. Small node allocations in hash tables leave physical pages mapped in the process address space.
+2. **C++ Runtime and Shared Libraries:** The process binary, loaded DLLs, C++ standard library runtime structures, and exception unwinding tables consume baseline physical memory regardless of query volume.
+3. **OS File System Page Cache:** When AXIOM reads external CSV files via Win32 `ReadFile` or standard I/O streams, the operating system kernel caches recently read disk blocks in the standby memory pool.
+
+A disciplined systems design distinguishes these metrics cleanly. A `--memory-limit` is an algorithmic resource contract governing operator state transitions, not an OS virtual memory jail.
+
+---
+
+## 10. Empirical Evidence: Audited Benchmark Ledger
+
+AXIOM's out-of-core architecture was evaluated against synthetic and realistic TPC-H-style analytical workloads during the v0.1.0 release milestone. The table below presents audited metrics verified from release artifacts:
+
+| Workload Dimension | Measured / Reported Value | Source Verification Reference |
+| :--- | :---: | :--- |
+| **Largest Input Processed** | **5.37 GB / 164,422,022 rows** | `audit/m3/M3_FINAL_REPORT.md` (Table 1) |
+| **Partitioned Spill Volume** | **3.74 GB spilled data** | `audit/m3/EXTERNAL_EXECUTION_AUDIT.md` |
+| **External-Sort Working Set (Pre-Fix)** | **150.86 MB** | `audit/rc1_1/MEMORY_DISCREPANCY.md` |
+| **External-Sort Working Set (Post-Fix)** | **17.68 MB (-88.3%)** | `audit/rc1_1/MEMORY_DISCREPANCY.md` |
+| **Raw CSV Ingestion Throughput** | **~1.05M rows/second** | `audit/m2/BENCHMARK_RESULTS.csv` |
+| **Regression Verification Checks** | **644 / 644 passed** | `audit/rc1_1/REGRESSION_RESULTS.md` |
+| **DuckDB 2.0.0 Differential Tests** | **120 / 120 passed (100% parity)** | `audit/m3/DIFFERENTIAL_VALIDATION.md` |
+
+These empirical results demonstrate that with bounded fan-in merge trees and Grace partitioning, an analytical engine can reliably process datasets orders of magnitude larger than its memory allocation.
+
+---
+
+## 11. Honest Architectural Limitations
+
+AXIOM was engineered from first principles as an exploratory analytical system. In the spirit of scientific transparency, its limitations must be stated with complete clarity:
+
+1. **Single-Threaded Execution:** In v0.1.0, physical operators execute on a single thread. While this eliminates concurrency races and simplifies out-of-core determinism, it leaves multi-core modern CPUs underutilized compared to parallel query engines like DuckDB or ClickHouse.
+2. **CSV Parsing Bottleneck:** AXIOM reads raw text CSV files directly. Delimiter scanning, escape character validation, and string-to-integer conversions dominate CPU execution cycles, capping scan speed at ~1.05 million rows/second. A production analytical engine requires a binary columnar storage format (such as Parquet or Arrow).
+3. **Absence of Transactions and Indexes:** AXIOM is strictly a read-only analytical query engine. It contains no write-ahead log (WAL), B-trees, ACID transaction coordinator, or storage concurrency controls.
+4. **SQL Language Restrictions:** v0.1.0 omits outer joins (`LEFT`, `RIGHT`, `FULL`), subqueries, common table expressions (`WITH`), window functions (`OVER`), and set operations (`UNION`).
+
+---
+
+## 12. Engineering Takeaways: The Discipline of Resource Contracts
+
+Building an out-of-core SQL engine from first principles yields fundamental software engineering lessons:
+
+- **Happy-Path Testing is Deceptive:** An algorithm that performs brilliantly on 10,000 in-memory rows will fail catastrophically when pushed beyond physical memory bounds unless disk-spilling protocols are designed into the operator interface from day one.
+- **Bound Every Dimension:** It is not enough to bound byte allocation; an engine must bound file descriptors, priority queue fan-in, and open directory handles. Unbounded merge fan-in produces memory leakage just as lethal as uncollected pointers.
+- **Differential Testing is Invaluable:** Implementing SQL semantics from scratch is fraught with subtle edge cases (null ordering, three-valued boolean logic, division by zero). Differential validation against a reference oracle—comparing 120 queries byte-for-byte against DuckDB—was the single most effective tool for establishing correctness.
+
+When designed with bounded memory contracts, deterministic binary temporary storage, and rigorous partition algorithms, a database engine transforms secondary storage from an out-of-memory emergency into a natural, predictable extension of execution memory.
+
+---
+
+## References and Source Links
+
+- [AXIOM Project Case Study](/projects/axiom) — Full systems overview, frontmatter, and release metadata.
+- [AXIOM Pinned Source Repository](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/README.md) — Audited release commit `e27db36e8c60`.
+- [AXIOM Architecture Specification](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/docs/ARCHITECTURE.md) — Detailed internal subsystem documentation.
+- [AXIOM Memory Discrepancy Forensics](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/rc1_1/MEMORY_DISCREPANCY.md) — RC1.1 external merge sort buffer investigation.
+- [AXIOM DuckDB Differential Validation](https://github.com/Zylus08/Axiom/blob/e27db36e8c6061317656665fcecd46d71803970d/audit/m3/DIFFERENTIAL_VALIDATION.md) — 120-query differential test harness.

@@ -11,6 +11,8 @@ export interface FirstPrinciplesProject {
   proofPoint: string;
   tags: string[];
   metrics: { label: string; value: string }[];
+  essayHref: string;
+  essayLabel: string;
 }
 
 export const firstPrinciplesProjects: FirstPrinciplesProject[] = [
@@ -29,6 +31,8 @@ export const firstPrinciplesProjects: FirstPrinciplesProject[] = [
       { label: "Working Set", value: "-88.3%" },
       { label: "Differential", value: "100%" },
     ],
+    essayHref: "/writing/sql-query-outgrows-memory",
+    essayLabel: "Engineering essay",
   },
   {
     id: "02",
@@ -45,6 +49,8 @@ export const firstPrinciplesProjects: FirstPrinciplesProject[] = [
       { label: "Total Checks", value: "1,614" },
       { label: "Memory Leaks", value: "0" },
     ],
+    essayHref: "/writing/building-a-cpp-interpreter",
+    essayLabel: "Engineering essay",
   },
   {
     id: "03",
@@ -61,6 +67,8 @@ export const firstPrinciplesProjects: FirstPrinciplesProject[] = [
       { label: "Amdahl Max", value: "1.0965×" },
       { label: "Bitwise Parity", value: "L∞ = 0.0" },
     ],
+    essayHref: "/research/faster-kernels-slower-training",
+    essayLabel: "Research paper",
   },
   {
     id: "04",
@@ -77,6 +85,8 @@ export const firstPrinciplesProjects: FirstPrinciplesProject[] = [
       { label: "Peak RAM", value: "1,061.4 MB" },
       { label: "DDR5 Bandwidth", value: "33.8 GB/s" },
     ],
+    essayHref: "/research/cpu-language-model-inference",
+    essayLabel: "Performance study",
   },
 ];
 
@@ -129,11 +139,7 @@ export function FirstPrinciplesCollection() {
 
       <div className="first-principles-grid">
         {firstPrinciplesProjects.map((project) => (
-          <Link
-            key={project.slug}
-            href={`/projects/${project.slug}`}
-            className="first-principles-card"
-          >
+          <div key={project.slug} className="first-principles-card">
             <div className="fp-card-header">
               <span className="fp-id micro">{project.id}</span>
               <span className="fp-layer micro">{project.layer}</span>
@@ -160,11 +166,22 @@ export function FirstPrinciplesCollection() {
                   <span key={tag}>{tag}</span>
                 ))}
               </div>
-              <span className="text-link">
-                Read case study <ArrowUpRight size={15} />
-              </span>
+              <div className="fp-card-actions">
+                <Link
+                  href={`/projects/${project.slug}`}
+                  className="text-link"
+                >
+                  Case study <ArrowUpRight size={14} />
+                </Link>
+                <Link
+                  href={project.essayHref}
+                  className="text-link fp-essay-link"
+                >
+                  {project.essayLabel} <ArrowUpRight size={14} />
+                </Link>
+              </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </div>

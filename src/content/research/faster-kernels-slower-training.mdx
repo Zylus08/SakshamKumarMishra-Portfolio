@@ -1,0 +1,269 @@
+---
+title: "Why My Faster Kernels Made PyTorch Training Slower"
+summary: "An experimental investigation into PyTorch CPU operator fusion, zero-mask backpropagation, and the microarchitectural bottlenecks that caused custom AVX2 kernels to achieve 0.8504× of stock throughput."
+category: "Efficient ML"
+status: "Independent exploration"
+featured: false
+tags: ["Machine Learning Systems", "PyTorch", "AVX2 SIMD", "Operator Fusion", "Amdahl's Law", "Benchmarking"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/FORGE"
+evidence: {"repository": "Zylus08/FORGE", "commit": "cffdb5c2e737987af1251f7e8e9e6d3483d346ef", "reviewed": "2026-11-19"}
+---
+
+## 1. Introduction and Research Question
+
+In deep learning systems research, operator fusion is widely regarded as a premier optimization strategy. By combining adjacent element-wise operations into a single execution pass, a runtime engine eliminates intermediate tensor materialization, reduces memory bus traffic, and enhances processor cache residency.
+
+On central processing units (CPUs), memory bandwidth is notoriously constrained compared to graphics processors (typically 30–60 GB/s on dual-channel host DDR4/DDR5 versus 300–1,000+ GB/s on modern discrete GPUs). During the training of deep residual networks, every residual block performs an element-wise addition ($x + \text{residual}$) followed by a Rectified Linear Unit activation ($\text{ReLU}(y)$). In standard PyTorch eager execution:
+1. The addition reads $x$ and $\text{residual}$ from main memory and writes intermediate sum $y$ back to memory.
+2. The activation reads $y$ from memory and writes activated tensor $z$ back to memory.
+3. Crucially, the backward pass requires a boolean activation mask tensor ($\mathbb{I}(y > 0.0)$) to compute gradients, requiring an additional 2 MB of dynamic DRAM allocation per stage for a standard batch size of 128.
+
+This overhead motivated the central research question of Project FORGE:
+
+> **Central Research Question:** Can custom AVX2 SIMD operator fusion and a zero-mask backpropagation architecture produce a measurable end-to-end CPU training acceleration in PyTorch without altering the model's mathematical behavior or loss trajectory?
+
+The initial experimental hypothesis posited that fusing residual addition and ReLU, while evaluating the backward derivative condition directly within CPU vector registers (eliminating the boolean mask tensor entirely), would deliver a 2.0× to 2.5× acceleration in per-step training latency on consumer x86_64 processors.
+
+This paper presents the empirical findings of that investigation. In accordance with rigorous scientific integrity, we report a decisive **negative result**: the custom fused kernels were strictly slower than stock PyTorch eager execution. On a certified Intel Core i7-12650H benchmark workload, the fastest FORGE configuration achieved **249.43 ms per step**, compared to **212.11 ms per step** for stock PyTorch eager execution—an end-to-end throughput ratio of **0.8504× (17.59% slower)**.
+
+Below, we document the experimental architecture, the numerical verification methodology, the empirical performance measurements, and an Amdahl's Law forensic analysis that explains why micro-kernel acceleration failed to translate into macro-system speedups.
+
+---
+
+## 2. Experimental Setup and Frozen Workload
+
+To ensure strict experimental reproducibility, all benchmarks, profiling traces, and numerical assertions were evaluated against a frozen, standardized workload:
+
+- **Model Architecture:** ResNet-20 for CIFAR-10 (3 residual stages, 20 layers total, 269,722 trainable parameters).
+- **Dataset:** CIFAR-10 (60,000 $32 \times 32$ RGB images across 10 classes).
+- **Precision:** Single-precision IEEE-754 Floating-Point (FP32).
+- **Batch Size:** 128 images per forward/backward training step.
+- **Optimizer:** Stochastic Gradient Descent (SGD) with momentum 0.9 and weight decay $10^{-4}$.
+- **Hardware Target:** Intel Core i7-12650H (Alder Lake architecture: 6 Performance cores, 4 Efficient cores, 16 hardware threads, 24 MB L3 cache, AVX2 and FMA3 instruction set extensions).
+- **Operating Environment:** Windows 11 x64, Visual Studio 2022 C++ Build Tools (MSVC v143), Python 3.10, PyTorch 2.x, Ninja.
+- **Physical Threading:** Thread pools were pinned to 10 physical cores (`OMP_NUM_THREADS=10`, `torch.set_num_threads(10)`), avoiding thread-oversubscription jitter across hyperthreaded logical cores.
+
+---
+
+## 3. The Zero-Mask Architecture and AVX2 Kernel Design
+
+In standard PyTorch autograd pipelines, backpropagation through a fused Add+ReLU operation requires caching a boolean mask tensor indicating which activations were strictly positive during the forward pass:
+
+$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \odot \mathbb{I}(y > 0.0)$$
+
+For a ResNet-20 stage with $128 \times 64 \times 8 \times 8$ activations, materializing and reading this mask incurs an extra round-trip across the CPU memory bus. FORGE introduced a **zero-mask architecture**:
+
+<Diagram steps="Forward Pass|Evaluate y = max(0, x+res)|Save Only Tensor y|Backward Pass|Recompute Condition in AVX2 Regs" caption="The Zero-Mask Architecture: eliminating intermediate boolean DRAM masks via vector register condition re-evaluation." />
+
+During the forward pass:
+$$y = \max(0.0, x + \text{residual})$$
+The kernel evaluates the fused addition and threshold in 256-bit AVX2 vector registers (`_mm256_add_ps`, `_mm256_max_ps`). Only the output activation tensor $y$ is saved for backpropagation. No boolean mask tensor is allocated or retained.
+
+During the backward pass:
+The kernel receives incoming gradients $\frac{\partial L}{\partial y}$ and the saved output tensor $y$. Assuming strictly finite real values ($x \in \mathbb{R}$), $y > 0.0$ if and only if $x + \text{residual} > 0.0$. The backward kernel re-evaluates the derivative condition directly in vector registers:
+
+```cpp
+// AVX2 Zero-Mask Backward Kernel Excerpt (native/src/fused_ops_m2.cpp)
+for (int64_t i = 0; i < num_elements; i += 8) {
+    __m256 v_grad_out = _mm256_loadu_ps(grad_out_ptr + i);
+    __m256 v_y        = _mm256_loadu_ps(saved_out_ptr + i);
+    __m256 v_zero     = _mm256_setzero_ps();
+
+    // Re-evaluate derivative condition directly in registers (0 DRAM reads)
+    __m256 v_mask     = _mm256_cmp_ps(v_y, v_zero, _CMP_GT_OQ);
+
+    // Apply masked gradient
+    __m256 v_grad_in  = _mm256_and_ps(v_grad_out, v_mask);
+
+    _mm256_storeu_ps(grad_x_ptr + i, v_grad_in);
+    _mm256_storeu_ps(grad_res_ptr + i, v_grad_in);
+}
+```
+
+This kernel design:
+1. Eliminates 2 MB of DRAM allocation per stage during the forward pass.
+2. Eliminates 2 MB of mask DRAM reads during the backward pass.
+3. Integrates directly into PyTorch via a custom autograd operator:
+   `torch::autograd::Function<FusedAddReLUZeroMaskFunction>`.
+
+---
+
+## 4. Numerical Verification and IEEE-754 Contract Scope
+
+Before evaluating performance, the engine's mathematical validity was subjected to rigorous numerical testing. A faster kernel that produces incorrect gradients or drifts from reference mathematical contracts is worse than useless.
+
+The verification suite ([`tests/numerical/test_zero_mask_edge_cases.py`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/tests/numerical/test_zero_mask_edge_cases.py)) executed four layers of validation:
+
+### 4.1 Bitwise Parity across Forward and Backward Passes
+Using synthetic tensors matching all three ResNet-20 tensor shapes ($128 \times 16 \times 32 \times 32$, $128 \times 32 \times 16 \times 16$, and $128 \times 64 \times 8 \times 8$), FORGE was compared against standard PyTorch eager operators (`at::add` + `at::relu_`). Across 3,674,112 evaluated elements, FORGE achieved exact bitwise equality:
+
+$$L_\infty = \max |y_{\text{forge}} - y_{\text{stock}}| = 0.0$$
+
+$$L_\infty = \max |\nabla x_{\text{forge}} - \nabla x_{\text{stock}}| = 0.0$$
+
+### 4.2 Analytical Finite-Difference Gradient Checking
+Custom autograd functions were validated using PyTorch's `torch.autograd.gradcheck` with double-precision floating-point numbers ($\text{eps} = 10^{-6}$, $\text{atol} = 10^{-5}$, $\text{rtol} = 10^{-3}$). Analytical gradients matched numerical finite-difference quotients across all input dimensions.
+
+### 4.3 IEEE-754 Edge Semantics
+Special numerical conditions were tested to confirm contract parity:
+- **Subgradient at Zero:** At $x + \text{residual} = 0.0$, the subgradient was verified to evaluate to exactly $0.0$ ($\nabla f(0.0) = 0.0$), matching PyTorch convention.
+- **Signed Zeros:** Handled $+0.0$ and $-0.0$ identically under IEEE-754 quiet comparison (`_CMP_GT_OQ`).
+- **Quiet NaN Propagation:** In accordance with PyTorch `at::relu`, NaNs propagate quietly through the forward pass without generating floating-point exceptions.
+- **Operational Domain:** The verified operational domain was explicitly certified as Finite Real FP32 ($\mathbb{R} \subset \text{FP32}$).
+
+### 4.4 Paired Trajectory Verification
+Across 10 consecutive training steps on CIFAR-10 with random mini-batches, identical weight initializations, and fixed PRNG seeds, all 269,722 model parameters, Adam momentum buffers, and running batch normalization statistics matched stock PyTorch with:
+
+$$L_\infty < 10^{-6}$$
+
+---
+
+## 5. Benchmarking Methodology and Subprocess Isolation
+
+Microbenchmarks in Python deep learning runtimes are notoriously prone to measurement distortion. Thread pools allocated by OpenMP (`omp_set_num_threads`) frequently persist across trials; memory allocators retain fragmented arenas; and laptop CPUs suffer thermal throttling during sustained loops.
+
+To eliminate these confounding factors, FORGE implemented a **Subprocess-Isolated Canonical Benchmark Harness** ([`canonical_runner.py`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/forge/benchmarking/canonical_runner.py)):
+1. **Isolated Worker Processes:** Every trial is launched in a freshly spawned Python subprocess. When the trial finishes, the process terminates, guaranteeing complete reclamation of thread pools and memory pages.
+2. **Warmup Exclusion:** Each run executes 5 un-timed warmup steps to prime CPU instruction caches and thread pools, followed by 20 timed steady-state training steps.
+3. **Drive E: Scratch Isolation:** All temporary files, PyTorch C++ extension build caches, and dataset locks were redirected to Drive E: to prevent host disk contention.
+4. **Statistical Rigor:** Benchmarks were repeated across 5 independent runs per configuration. Per-run medians were extracted to eliminate garbage collection spikes, and sample means with 95% Student's t confidence intervals ($\nu = 4$) were computed.
+
+---
+
+## 6. Empirical Results: The Certified Benchmark Ledger
+
+The table below presents the certified benchmark measurements across stock PyTorch baselines and FORGE configurations on the Intel Core i7-12650H processor (batch size 128, 10 physical threads):
+
+| Configuration | Engine Backend | Memory Layout | Threads | Step Latency (ms) | 95% Confidence Interval | Throughput (samples/s) | Relative Speedup | Benchmark Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **`stock_nhwc`** | `torch-eager` | **NHWC** | **10** | **212.11 ms** | **[207.50, 216.72] ms** | **603.5** | **1.0000×** | **CERTIFIED STOCK BASELINE** |
+| `stock_nchw` | `torch-eager` | NCHW | 10 | 222.20 ms | [219.40, 225.00] ms | 576.1 | 0.9546× | Stock Eager Contiguous |
+| `stock_tuned` | `torch-tuned` | NHWC | 10 | 254.88 ms | [248.10, 261.66] ms | 502.2 | 0.8322× | Stock Tuned Baseline |
+| **`forge_nchw`** | `forge` | **NCHW** | **10** | **249.43 ms** | **[236.97, 261.89] ms** | **513.2** | **0.8504×** | **FASTEST FORGE CONFIGURATION** |
+| `forge_nhwc` | `forge` | NHWC | 10 | 272.62 ms | [185.50, 359.75] ms | 469.8 | 0.7780× | FORGE Channels-Last |
+
+### The Critical Findings:
+1. **The 2.5× Acceleration Goal Was NOT Achieved:** FORGE failed to accelerate end-to-end training.
+2. **FORGE is 17.59% Slower Than Stock:** Comparing the fastest valid FORGE configuration (`forge_nchw`: 249.43 ms) to the fastest certified stock competitor (`stock_nhwc`: 212.11 ms) demonstrates an end-to-end execution ratio of **0.8504×** (a slowdown of 17.59%).
+3. **Statistical Significance:** A two-sample Welch's t-test confirms that stock Channels-Last execution is statistically significantly faster than NCHW ($t = -5.1927, p = 0.0016$).
+
+---
+
+## 7. Forensic Analysis: Why Did Faster Kernels Make Training Slower?
+
+How could an AVX2 kernel that eliminates 2 MB of memory traffic and executes with bitwise parity result in a 17.59% end-to-end slowdown?
+
+To diagnose this apparent paradox, detailed operator-level execution tracing was performed using the PyTorch Profiler. The results revealed two compounding architectural bottlenecks: **Amdahl's Law** and **Memory Layout Contiguity Thrashing**.
+
+### 7.1 Bottleneck 1: Amdahl's Law and the 8.8% Ceiling
+Amdahl's Law dictates that the maximum speedup achievable by optimizing a component is strictly limited by the fraction of time that component spends in the original execution:
+
+$$S_{\text{max}} = \frac{1}{(1 - f) + \frac{f}{s}}$$
+
+where $f$ is the fraction of execution time amenable to improvement, and $s$ is the speedup factor of that component.
+
+The operator profiling trace for a single ResNet-20 training step broke down as follows:
+
+| Subsystem / Operator | Absolute Step Time | Fraction of Runtime ($f$) | Optimization Status |
+| :--- | :---: | :---: | :--- |
+| **2D Convolutions (`torch.nn.Conv2d`)** | **104.85 ms** | **49.43%** | Unaccelerated (Standard PyTorch) |
+| **Batch Normalization (`torch.nn.BatchNorm2d`)** | **70.10 ms** | **33.05%** | Unaccelerated (Standard PyTorch) |
+| **Non-Accelerated Total ($1 - f$)** | **174.95 ms** | **82.48%** | **Completely unaffected by FORGE** |
+| **Residual Add + ReLU** | **18.67 ms** | **8.80%** | **Target of FORGE AVX2 Fusion ($f$)** |
+| **Other Overhead (SGD, Loss, Transfers)** | 18.49 ms | 8.72% | Unaccelerated |
+
+Notice the devastating reality of the execution profile:
+- 2D convolutions account for **49.43%** of training step time.
+- Batch normalization accounts for **33.05%** of training step time.
+- Together, convolutions and batch normalization consume **82.48%** of the entire step.
+- The target of our optimization—fused residual addition and ReLU activation—accounted for only **8.80%** ($f = 0.088$) of total execution time!
+
+Now calculate the theoretical upper bound on speedup assuming our AVX2 kernel was infinitely fast ($s \to \infty$, taking zero milliseconds):
+
+$$S_{\text{max}} = \frac{1}{(1 - 0.088) + \frac{0.088}{\infty}} = \frac{1}{0.912} \approx 1.0965\times$$
+
+Even under idealized, mathematically impossible conditions where the fused Add+ReLU operation took literally zero time, the total training step could never improve by more than **9.65%**! The targeted 2.5× speedup was physically impossible from the outset because 82.48% of the workload remained untouched.
+
+### 7.2 Bottleneck 2: Memory Layout Contiguity and oneDNN Interactions
+Amdahl's Law explains why the speedup could not exceed 1.0965×, but why was FORGE *slower* (0.8504×)?
+
+The answer lies in how PyTorch interfaces with Intel's **oneDNN (MKL-DNN)** library:
+1. **The Channels-Last (`NHWC`) Advantage:** In stock PyTorch eager mode, tensors can be configured in Channels-Last memory format (`torch.channels_last`). In NHWC layout, the channel dimension is contiguous in memory. Intel oneDNN's convolution kernels are specifically vectorized to exploit NHWC contiguity, streaming SIMD registers directly across input channels without transposing memory.
+2. **Format Conversion Penalties in FORGE:** FORGE's native AVX2 kernels were authored assuming standard contiguous memory (`NCHW`). When FORGE was evaluated in NHWC mode (`forge_nhwc`), PyTorch was forced to perform repeated memory transpositions before and after each custom C++ extension dispatch. These format conversions introduced **23.19 ms of pure memory copying overhead** per step.
+3. **L2 Cache Thrashing:** In the zero-mask backward pass, the kernel re-reads the output activation tensor $y$ to re-evaluate $y > 0.0$. While this avoided allocating a boolean mask tensor in DRAM, reading the activation tensor evicted convolution weights from the CPU's 1.25 MB per-core L2 cache, degrading the throughput of the subsequent backward convolution.
+
+The microscopic gain of avoiding a boolean mask in vector registers was completely wiped out by the macroscopic penalty of cache eviction and lost memory contiguity.
+
+---
+
+## 8. Threats to Validity and Unperformed Experiments
+
+Scientific honesty requires documenting experimental boundaries and threats to external validity:
+
+1. **Model Scope:** Experiments were conducted exclusively on ResNet-20 on CIFAR-10. Architectures with vastly different arithmetic intensities (e.g., Vision Transformers or MLP-Mixers) might exhibit different memory-to-compute ratios.
+2. **Hardware Constraints:** All benchmarks were measured on a single Intel Alder Lake mobile processor (i7-12650H) under Windows 11. Server-grade processors (such as Intel Xeon with AVX-512 or AMD EPYC with larger L3 caches) were not evaluated.
+3. **Unexecuted Long-Horizon Training:** The repository certified numerical parity over 10 training steps ($L_\infty < 10^{-6}$). Full 160-epoch convergence to final validation accuracy was not executed due to CPU execution credit limits.
+4. **Precision Scope:** Evaluated exclusively in FP32; bfloat16 (BF16) and INT8 quantization kernels were not implemented.
+
+---
+
+## 9. Hypothesis Revision and Future Research Directions
+
+The empirical failure of Project FORGE forces an important revision of systems research methodology:
+
+### Revised Systems Hypothesis
+> Isolated element-wise operator fusion cannot accelerate deep convolutional training on CPUs unless the dominant computational kernels—specifically 2D convolutions and batch normalization—are fused simultaneously into a unified spatial execution tile.
+
+### Next Directions for CPU Acceleration
+1. **Holistic 4-Way Fusion:** A viable CPU accelerator must fuse `Conv2D + BatchNorm + Add + ReLU` into a single loop nest using libraries like LIBXSMM. In a unified tile kernel, convolution output pixels are held in SIMD registers, normalized, added to the residual stream, and activated before being written to memory once.
+2. **Native NHWC Strides:** Custom SIMD kernels must support Channels-Last strides natively to preserve oneDNN cache locality.
+3. **Hardware Accelerators (VNNI / AMX):** Rather than hand-crafting AVX2 element-wise kernels, CPU training research should target Intel AMX (Advanced Matrix Extensions) for mixed-precision BF16 matrix multiplication.
+
+---
+
+## 10. Results
+
+The empirical results of Project FORGE v0.1.0-rc1 are certified as follows:
+- **Target Status:** **2.5× acceleration NOT ACHIEVED**.
+- **Stock Baseline Competitor:** 212.11 ms/step (603.5 samples/sec, `torch-eager` NHWC, 10 threads).
+- **Fastest FORGE Configuration:** 249.43 ms/step (513.2 samples/sec, `forge` NCHW, 10 threads).
+- **End-to-End Speedup Ratio:** **0.8504× of stock performance (17.59% slower)**.
+- **Amdahl's Law Breakdown:** Convolutions (49.43%) + BatchNorm (33.05%) = **82.48%** of runtime; Residual Add+ReLU = **8.80%**; theoretical speedup ceiling = **1.0965×**.
+- **Numerical Parity:** **29/29 regression tests passed** with exact bitwise parity ($L_\infty = 0.0$ across 3,674,112 elements).
+
+---
+
+## 11. Limitations
+
+- Fused kernels operate exclusively on ResNet-20 architectures on x86_64 CPUs with AVX2.
+- Convolutions and batch normalization remain unaccelerated PyTorch calls.
+- Limited to single-precision FP32.
+- Evaluated on a single hybrid Alder Lake CPU host.
+
+---
+
+## 12. Reproducibility
+
+The complete source code, native C++ kernels, verification tests, and canonical benchmark harnesses are publicly available:
+- **Project Case Study:** [FORGE Project Case Study](/projects/forge)
+- **Pinned Git Commit:** [`Zylus08/FORGE` @ `cffdb5c2e737`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/README.md)
+- **Baseline Certification Audit:** [`audit/rc1/BASELINE_CERTIFICATION.md`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/audit/rc1/BASELINE_CERTIFICATION.md)
+- **Amdahl Correction Analysis:** [`audit/rc1/AMDAHL_CORRECTION.md`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/audit/rc1/AMDAHL_CORRECTION.md)
+- **Numerical Revalidation Ledger:** [`audit/rc1/NUMERICAL_REVALIDATION.md`](https://github.com/Zylus08/FORGE/blob/cffdb5c2e737987af1251f7e8e9e6d3483d346ef/audit/rc1/NUMERICAL_REVALIDATION.md)
+
+### Verification Commands
+```powershell
+# Rebuild native C++ extension
+$env:TMP = "E:\FORGE\.tmp"; $env:TEMP = "E:\FORGE\.tmp"
+python setup_native.py build_ext --inplace
+
+# Run 29 numerical regression tests
+python -m pytest tests/ -v
+
+# Run canonical stock benchmark
+python -m forge.benchmarking.canonical_runner --worker --backend torch-eager --layout NHWC --threads 10 --timed-steps 20 --skip-eval
+
+# Run canonical FORGE benchmark
+python -m forge.benchmarking.canonical_runner --worker --backend forge --layout NCHW --threads 10 --timed-steps 20 --skip-eval
+```

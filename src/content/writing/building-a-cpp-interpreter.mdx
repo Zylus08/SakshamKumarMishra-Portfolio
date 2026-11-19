@@ -1,0 +1,325 @@
+---
+title: "Building a C++ Interpreter Changed How I Think About Memory"
+summary: "An engineering exploration into language runtime design, examining why interpreting C++ requires an Abstract Validated Handle Reference Model, deterministic RAII destructor unwinding, and isolated object lifetimes."
+category: "Engineering"
+status: "Published"
+featured: false
+tags: ["Compilers", "Language Runtimes", "C++20", "Memory Safety", "RAII", "Systems Architecture"]
+date: "2026-11-19"
+code: "https://github.com/Zylus08/PRAXIS"
+evidence: {"repository": "Zylus08/PRAXIS", "commit": "aed74043eca5c7092250d5449eed6ddc4d7c0aac", "reviewed": "2026-11-19"}
+---
+
+## 1. The Deceptive Simplicity of an Abstract Syntax Tree
+
+In introductory compiler literature, interpreting a programming language is often presented as a straightforward tree-walking exercise. You construct a lexer to emit tokens, build a recursive-descent parser to construct an Abstract Syntax Tree (AST), and implement an `eval()` visitor pattern that walks down expression nodes and returns computed values.
+
+For simple expression calculators or dynamically typed scripting languages (like early Python or Lisp), this mental model holds up reasonably well. Environments are hash tables mapping variable names to heap-allocated variant objects, and memory reclamation is deferred to a tracing garbage collector or reference-counting pointer wrapper.
+
+Now attempt to apply that naive tree-walking model to C++:
+
+```cpp
+#include <iostream>
+
+struct Resource {
+    int id;
+    Resource(int i) : id(i) { std::cout << "Allocated " << id << "\n"; }
+    ~Resource() { std::cout << "Destroyed " << id << "\n"; }
+};
+
+void process(Resource* r, bool fail) {
+    if (fail) return; // Destruction must occur cleanly up the call stack
+    std::cout << "Processing " << r->id << "\n";
+}
+
+int main() {
+    Resource r1(1);
+    Resource* r2 = new Resource(2);
+    {
+        Resource r3(3);
+        process(r2, false);
+    } // r3 MUST be destroyed here in reverse order of declaration
+    delete r2; // r2 MUST be destroyed here
+} // r1 MUST be destroyed here
+```
+
+Immediately, the naive tree-walker disintegrates. C++ is not merely syntax; it is an unforgiving contract of object identity, deterministic lifetime scopes, manual dynamic allocation, pointer arithmetic, and Resource Acquisition Is Initialization (RAII). 
+
+If your interpreter represents user pointers using raw 64-bit host virtual memory addresses, a single user error—such as dereferencing a dangling pointer, deleting an automatic stack variable, or double-freeing an allocated resource—will directly corrupt the host interpreter process, execute arbitrary memory reads, or cause an uncontrolled operating system segmentation fault.
+
+This essay examines what happens when you build a restricted, lifetime-safe C++ interpreter from first principles. Drawing on architectural lessons and concrete source code from [PRAXIS](/projects/praxis)—a self-contained C++20 tree-walking interpreter—we explore how modeling C++ memory without native machine code fundamentally alters how an engineer reasons about identity, ownership, pointer validation, and deterministic destruction.
+
+---
+
+## 2. From Source Text to Execution: The Interpretation Pipeline
+
+PRAXIS executes user source code through a clean-room five-stage compilation and interpretation pipeline:
+
+<Diagram steps="Lexer & Preprocessor|Recursive-Descent AST Parser|Symbol Resolver & Semantic Type Checker|Abstract Handle Model|Tree-Walking RAII Evaluator" caption="PRAXIS interpreter pipeline: from raw source text to validated runtime object evaluation." />
+
+1. **Lexical Analysis and Virtual Preprocessor:** Scans source characters into typed tokens with precise file coordinates. It virtualizes standard library headers (`<iostream>`, `<vector>`, `<string>`, `<algorithm>`, `<utility>`) by reading pre-parsed interface definitions rather than disk files, and tracks preprocessor directives.
+2. **Abstract Syntax Tree (AST) Parser:** Constructs an AST supporting namespaces, class declarations, constructors with member-initializer lists, operator overloads, templates, and statement nodes.
+3. **Semantic Analysis and Type Checking:** Builds hierarchical symbol tables, validates compound type signatures (`T*`, `const T*`, `T&`, `T**`), verifies const-correctness, and resolves constructor and function overload candidates based on type compatibility.
+4. **The Abstract Validated Handle Reference Model:** Transforms pointer and reference values into safe, structured descriptors that decouple object identity from host virtual addresses.
+5. **Tree-Walking Execution Runtime and RAII Engine:** Manages execution scopes, coordinates dynamic allocations, evaluates expressions, and guarantees reverse-order destructor invocation upon scope termination.
+
+---
+
+## 3. Why Exposing Host Pointers is Fatal
+
+In a compiled C++ binary, a pointer is simply a 64-bit unsigned integer representing a physical or virtual memory address in the CPU's memory management unit (MMU):
+
+$$\text{ptr} = \text{0x00007FF7B128A040}$$
+
+When the compiled binary executes `*ptr = 42`, the CPU issues a `mov` instruction directly to that address. If the pointer points to an expired stack frame or an unmapped memory page, hardware memory protection triggers an interrupt, and the operating system terminates the process.
+
+In an interpreter, however, user code executes within the memory space of the interpreter itself. If the interpreter stores raw host pointers:
+
+```cpp
+// DANGEROUS: Naive interpreter representation of a user pointer
+struct NaiveUserPointer {
+    void* host_address; // Points directly to interpreter heap memory!
+};
+```
+
+This naive design introduces three catastrophic vulnerabilities:
+1. **Host Memory Corruption:** If a user script contains a bug (`int* p = nullptr; *p = 10;` or out-of-bounds array access), it will overwrite internal interpreter data structures, corrupt symbol tables, or crash the interpreter host process.
+2. **Host Address Space Leaks:** User code could inspect pointer integer values, leaking host memory layout and breaking sandboxing boundaries.
+3. **Inability to Intercept Undefined Behavior (UB):** Once an invalid host memory address is dereferenced, the host CPU crashes immediately. The interpreter has no opportunity to catch the error, emit a structured diagnostic stack trace, or terminate user execution gracefully.
+
+To interpret C++ safely, an interpreter must construct an **Abstract Memory Machine** that virtualizes object identity.
+
+---
+
+## 4. The Abstract Validated Handle Reference Model
+
+To resolve the pointer safety dilemma, PRAXIS introduces an **Abstract Validated Handle Reference Model**. A pointer or reference in user code is never an integer address. Instead, it is an immutable, four-component structured handle:
+
+$$\text{PointerHandle} = \langle \text{targetId},\, \text{generation},\, \text{targetType},\, \text{offset} \rangle$$
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│             PRAXIS Abstract Validated Handle Structure                 │
+├─────────────────┬──────────────────┬─────────────────┬─────────────────┤
+│ targetId (64b)  │ generation (32b) │ targetType (Ptr)│ offset (ptrdiff)│
+├─────────────────┼──────────────────┼─────────────────┼─────────────────┤
+│ Unique ID of    │ Recycled slot    │ Static & dynamic│ Element index   │
+│ allocation slot │ lifetime counter │ type descriptor │ in array slice  │
+└─────────────────┴──────────────────┴─────────────────┴─────────────────┘
+```
+
+Each component plays a vital role in enforcing spatial and temporal memory safety:
+- **`targetId`:** A unique 64-bit integer identifying an active allocation slot in the interpreter's global object registry. Every stack variable, heap allocation, and container buffer receives a unique `targetId`.
+- **`generation`:** A monotonically increasing counter associated with each allocation slot. When a heap block is deleted and its memory slot is recycled for a future allocation, the slot's generation is incremented.
+- **`targetType`:** A type descriptor encoding static and dynamic types, qualifiers (`const`, `volatile`), and indirection depth (`T**`).
+- **`offset`:** A signed integer representing element index or byte displacement within an allocated contiguous sequence (such as a fixed-size array or a `std::vector` buffer).
+
+### 4.1 Enforcing Temporal Safety: Trapping Use-After-Free
+Consider a classic temporal memory bug: use-after-free.
+
+```cpp
+Resource* r = new Resource(10);
+delete r;
+r->id = 20; // Use-after-free
+```
+
+In PRAXIS, execution proceeds as follows:
+1. `new Resource(10)` allocates slot ID 42 in the object registry. The slot's current generation is 1. The returned handle is $\langle \text{targetId}: 42, \text{gen}: 1, \text{type}: \text{Resource*}, \text{offset}: 0 \rangle$.
+2. `delete r` invokes `~Resource()`, marks slot 42 as freed, and increments the slot's generation counter to 2.
+3. When user code executes `r->id = 20`, the interpreter evaluates the handle against the object registry:
+   $$\text{handle.generation} = 1 \quad \neq \quad \text{registry}[42].\text{generation} = 2$$
+4. The generation mismatch is detected immediately. PRAXIS aborts the operation and emits a clean, sandboxed runtime trap:
+   `RUNTIME ERROR: Use-after-free: object handle generation 1 has expired (current generation: 2)`.
+
+The host interpreter process suffers no segmentation fault, no memory corruption, and no undefined behavior.
+
+### 4.2 Enforcing Spatial Safety: Pointer Arithmetic and Out-of-Bounds Traps
+Pointer arithmetic in C++ is strictly defined only within the bounds of a single array allocation (plus one element past the end). In PRAXIS:
+
+```cpp
+int arr[4] = {10, 20, 30, 40};
+int* ptr = arr;     // offset = 0, capacity = 4
+ptr += 2;           // offset = 2
+ptr += 5;           // offset = 7 -> INVALID!
+int val = *ptr;     // Trapped!
+```
+
+When pointer addition (`ptr + n`) or subtraction (`p2 - p1`) is evaluated:
+- The interpreter adjusts `offset = offset + n`.
+- Upon dereferencing (`*ptr` or `ptr->member`), the interpreter queries the registry for the allocation's declared element capacity $C$.
+- If $\text{offset} < 0$ or $\text{offset} \ge C$, PRAXIS traps the out-of-bounds access with an informative diagnostic before any memory read is attempted.
+
+---
+
+## 5. Scope-Driven Object Lifetimes and Deterministic RAII
+
+The defining feature of C++ is Resource Acquisition Is Initialization (RAII): resource lifecycles are bound to object scope. Destructors must execute deterministically, in the exact reverse order of construction, the moment execution leaves a block scope.
+
+### 5.1 Stack Unwinding and Reverse-Order Destruction
+In PRAXIS, each execution block (`{ ... }`) pushes a `ScopeFrame` onto the interpreter's call stack. A `ScopeFrame` maintains a destructor registry: an ordered list of active automatic variables declared within that block.
+
+Consider nested scopes:
+```cpp
+{
+    Resource a(1); // 1. Construct a
+    Resource b(2); // 2. Construct b
+    {
+        Resource c(3); // 3. Construct c
+    } // Exit inner scope: Destroy c
+} // Exit outer scope: Destroy b, then destroy a
+```
+
+When the interpreter's tree-walker exits an AST block node:
+1. It pops the innermost `ScopeFrame`.
+2. It iterates through the frame's destructor registry in **reverse chronological order**.
+3. For each registered object, it resolves the type's destructor AST method and executes it in a clean evaluation context.
+4. It unbinds local variable names from the symbol table and frees the stack allocation slots.
+
+```text
+Call Stack State Transition:
+[Block 1 Entry] ──► Push ScopeFrame 1 ──► Register: a (id:1), b (id:2)
+  [Block 2 Entry] ──► Push ScopeFrame 2 ──► Register: c (id:3)
+  [Block 2 Exit]  ──► Unwind ScopeFrame 2:
+                      1. Invoke ~Resource() on c (id:3)
+                      2. Free allocation c
+[Block 1 Exit]  ──► Unwind ScopeFrame 1:
+                    1. Invoke ~Resource() on b (id:2)
+                    2. Invoke ~Resource() on a (id:1)
+                    3. Free allocations b, a
+```
+
+### 5.2 Dynamic Storage: `new`, `delete`, and Double-Free Traps
+Dynamic allocation introduces explicit, programmer-controlled lifetimes. When PRAXIS encounters a `new` expression:
+1. It looks up the target type's memory layout and allocates a managed block in the heap registry.
+2. It resolves constructor overloads matching the supplied call arguments.
+3. It constructs the object in-place and registers a valid `PointerHandle` with `is_dynamic = true`.
+
+When user code calls `delete ptr`:
+1. **Nullptr Safety:** If `ptr.targetId == 0` (`nullptr`), `delete` is a documented no-op, matching ISO C++ standards.
+2. **Dynamic Ownership Verification:** The interpreter verifies that `is_dynamic == true`. If a user script attempts to call `delete &stack_var;`, PRAXIS halts with:
+   `RUNTIME ERROR: Illegal delete: target is an automatic stack variable, not a heap allocation`.
+3. **Double-Free Detection:** The interpreter checks if the target slot is already marked as freed. Attempting to call `delete ptr` a second time triggers an immediate double-free trap.
+4. **Destructor Invocation:** If valid, the object's typed destructor is invoked, member destructors are recursively executed, the slot generation is incremented, and the memory block is reclaimed.
+
+---
+
+## 6. Templates and Generic AST Instantiation
+
+Supporting generic programming in an interpreter is fundamentally different from ahead-of-time compilation. In GCC or Clang, templates are instantiated into machine code during compilation. An interpreter must instantiate and evaluate templates dynamically during interpretation.
+
+PRAXIS supports class and function templates with argument deduction:
+
+```cpp
+template<typename T>
+class Accumulator {
+    T value;
+public:
+    Accumulator(T initial) : value(initial) {}
+    void add(T x) { value += x; }
+    T result() const { return value; }
+};
+```
+
+When the interpreter encounters an instantiation:
+```cpp
+Accumulator<int> sum(0);
+```
+1. **Template Specialization Lookup:** PRAXIS computes a unique specialization key: `Accumulator<int>`. It checks an internal memoization cache.
+2. **AST Specialization Cloning:** If not already cached, the interpreter deep-clones the template class AST subtree, substituting all occurrences of type parameter `T` with concrete type `int`.
+3. **Semantic Validation:** The specialized class AST is bound and type-checked as a regular concrete struct.
+4. **Member Method Binding:** Methods (`add`, `result`) are bound with specialized signatures (`void add(int)`, `int result() const`).
+
+By caching and memoizing specialized AST subtrees, PRAXIS avoids redundant parsing while supporting complex generic patterns, including template classes with standard library container members.
+
+---
+
+## 7. Standard Template Library (STL) Subset
+
+A C++ runtime is incomplete without its standard containers. PRAXIS embeds clean-room, lifetime-managed implementations of core STL components:
+
+- **`<vector>`:** `std::vector<T>` supporting default, sized, and initializer-list constructors (`std::vector<int> v = {10, 20, 30};`), deep copy assignment, `push_back`, `pop_back`, bounds-checked `at()`, `operator[]`, `front`, `back`, `size`, `empty`, `resize`, `reserve`, `begin`, and `end`.
+- **`<string>`:** String manipulation with `size()`, `length()`, `substr()`, and character indexing.
+- **`<utility>`:** `std::pair<T1, T2>`, `std::make_pair`, `std::swap`, and `std::move`.
+- **`<algorithm>`:** Standard algorithms operating on random-access iterator handles: `std::min`, `std::max`, `std::sort`, `std::reverse`, `std::find`, `std::count`.
+- **Range-Based For Loops:** Lowering of `for (auto item : container)` into standard iterator loops:
+  ```cpp
+  for (auto it = container.begin(); it != container.end(); ++it) {
+      auto item = *it;
+      // body
+  }
+  ```
+
+Every container operation respects the handle model. When a `std::vector` reallocates its internal buffer during `push_back`, all previous iterator handles targeting the old buffer have their generation invalidated, cleanly trapping iterator invalidation bugs.
+
+---
+
+## 8. Differential Verification: Testing Against MSVC
+
+How do you prove that an interpreter's understanding of C++ matches reality?
+
+In PRAXIS, verification is established through an exhaustive **Differential Test Harness against Native MSVC** (`cl.exe /std:c++20 /EHsc /Od /Zc:nrvo-`):
+
+```text
+                     Test Source Program (.cpp)
+                                  │
+                 ┌────────────────┴────────────────┐
+                 ▼                                 ▼
+         Native MSVC 2022                  PRAXIS Interpreter
+   (cl.exe /std:c++20 /Od ...)           (praxis.exe run ...)
+                 │                                 │
+                 ▼                                 ▼
+         Execute native .exe               Tree-Walk Execution
+                 │                                 │
+                 ▼                                 ▼
+          Captured stdout                   Captured stdout
+          & Exit Code (A)                   & Exit Code (B)
+                 │                                 │
+                 └────────────────┬────────────────┘
+                                  ▼
+                     Byte-for-Byte Diff (A == B)
+```
+
+The differential test harness:
+1. Compiles each C++ test program with native Microsoft Visual C++ Build Tools (MSVC v143).
+2. Executes the native executable, capturing standard output, standard error, and process exit code.
+3. Executes the identical C++ source file using the PRAXIS interpreter executable (`praxis.exe run test.cpp`).
+4. Performs an exact, byte-for-byte comparison of stdout and return codes.
+
+Across the certified release suite:
+- **258 differential programs** (42 Milestone 3 programs, 79 Milestone 2 programs, and 137 Milestone 1 programs) were executed.
+- PRAXIS achieved a **100.0% pass rate**, proving that constructor ordering, destructor chains, pointer arithmetic, template deduction, and STL algorithms produce identical visible results to native machine code.
+- An additional **13 adversarial safety programs** verified that invalid operations (use-after-free, double deletion, deleting stack variables) were cleanly trapped without crashing the host interpreter.
+
+---
+
+## 9. Scoping the Boundaries: What PRAXIS Does Not Implement
+
+Scientific integrity requires stating what the system does not do:
+
+- **No Virtual Method Tables (Dynamic Polymorphism):** Virtual methods (`virtual void speak() = 0;`), pure abstract classes, and runtime vtable dispatch are not implemented in v0.1.0. All method dispatch is resolved statically at compile time.
+- **No Multiple Inheritance:** Supports single inheritance only. Multiple base classes (`class C : public A, public B`) and virtual base classes are unsupported.
+- **No Exception Handling:** `try`, `catch`, and `throw` blocks are not supported. Runtime violations trigger immediate, deterministic process panics rather than unwinding catch blocks.
+- **No Concurrency:** Execution is strictly single-threaded. Standard threading libraries (`<thread>`, `<atomic>`, `<mutex>`) are not available.
+- **No Macro Preprocessor:** Does not support complex macro expansions or token-pasting (`##`) beyond basic `#include` virtualization.
+
+---
+
+## 10. Engineering Lessons: How Building an Interpreter Changes Memory Reasoning
+
+Constructing PRAXIS fundamentally shifted my perspective on software engineering:
+
+1. **Memory is an Architectural Abstraction, Not Hardware Reality:** We often think of memory as a physical array of bytes indexed by integers. Building an interpreter proves that memory in high-level systems is actually a set of **logical invariants**: identity, validity intervals, capability permissions, and destruction contracts. Hardware addresses are merely one possible implementation of those invariants.
+2. **Generational Counters are Underutilized:** The generation counter pattern used in PRAXIS's handle reference model is one of the most powerful tools in systems programming. Modern game engines (e.g., entity-component systems) and high-performance allocators use generational handles to eliminate pointer invalidation bugs with zero garbage collection overhead.
+3. **RAII is the Superior Resource Model:** Implementing scope unwinding from scratch deepens appreciation for RAII. Compared to garbage collection (which produces non-deterministic latency spikes and leaks unmanaged OS resources like file handles) or manual cleanup (which invites human error), deterministic reverse-order destruction is the most robust resource paradigm ever conceived.
+
+By divorcing pointer ergonomics from raw hardware addresses, an interpreter transforms C++ from a dangerous minefield of memory corruption into a clean, verifiable laboratory of object lifetimes.
+
+---
+
+## References and Source Links
+
+- [PRAXIS Project Case Study](/projects/praxis) — Full systems overview, frontmatter, and release metadata.
+- [PRAXIS Pinned Source Repository](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/README.md) — Audited release commit `aed74043eca5`.
+- [PRAXIS Final Release Certification Decision](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/FINAL_RELEASE_VERIFICATION.md) — Certification report and test breakdown.
+- [PRAXIS Pointer Memory Forensics](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/audit/rc1_1/POINTER_MEMORY_FORENSICS.md) — Analysis of handle safety and temporal memory trapping.
+- [PRAXIS Differential Harness Audit](https://github.com/Zylus08/PRAXIS/blob/aed74043eca5c7092250d5449eed6ddc4d7c0aac/audit/rc1_1/DIFFERENTIAL_HARNESS_AUDIT.md) — 258 MSVC differential program ledger.
